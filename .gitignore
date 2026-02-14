@@ -1,0 +1,10 @@
+pod-cost-analyzer
+*.exe
+*.dll
+*.so
+*.dylib
+dist/
+bin/
+.DS_Store
+.env
+*.log

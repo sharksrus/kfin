@@ -221,7 +221,7 @@ func ShowDashboard(data ReportData) {
 	// ========== BOTTOM SHORTCUT BAR ==========
 	shortcutBar := tview.NewTextView().
 		SetDynamicColors(true).
-		SetText(" <a>Attach <d>Delete <e>Describe <ctrl-d>Edit <?>Help <l>Logs ")
+		SetText(" <1>Overview <2>Pods <3>Nodes <4>Namespace <ESC>Quit ")
 	shortcutBar.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
 
 	// ========== MAIN LAYOUT ==========

@@ -1,0 +1,39 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    assignees:
+      - "newman-bot"
+    labels:
+      - "dependencies"
+      - "go"
+    rebase-strategy: "auto"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    assignees:
+      - "newman-bot"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    rebase-strategy: "auto"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:15"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    groups:
+      gha-dependencies:
+        patterns:
+          - "*"

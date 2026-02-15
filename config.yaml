@@ -1,0 +1,18 @@
+# kfin configuration
+# Edit this file to customize pricing for your infrastructure
+
+pricing:
+  # Hardware cost per node, amortized over 3 years (36 months)
+  # Example: $150 Raspberry Pi / 36 months = $4.17/month
+  hardware_monthly_per_gb: 0.26  # $0.26 per GB per month
+
+  # Electricity cost per kWh
+  electricity_rate: 0.113640  # $/kWh
+
+  # Average wattage per node
+  watts_per_node: 15  # Raspberry Pi typically uses 5-10W idle, 15W under load
+
+  # Cloud pricing (if using cloud vs local)
+  cloud:
+    cpu_per_hour: 0.025   # $/vCPU/hour
+    mem_per_gb_hour: 0.006  # $/GB/hour

@@ -1,0 +1,114 @@
+name: Homebrew Tap Update
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag to publish (e.g. v0.0.1). Defaults to latest release tag."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  update-homebrew-tap:
+    name: Update Homebrew Tap Formula
+    runs-on:
+      group: moar-linux
+    env:
+      TAP_REPO: sharksrus/homebrew-kfin
+    steps:
+      - name: Checkout kfin repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Create GitHub App token
+        id: app_token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
+        with:
+          app-id: ${{ secrets.HOMEBREW_APP_ID }}
+          private-key: ${{ secrets.HOMEBREW_APP_PRIVATE_KEY }}
+          owner: sharksrus
+          repositories: |
+            homebrew-kfin
+            kfin
+
+      - name: Resolve version tag
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "release" ]]; then
+            version="${GITHUB_REF_NAME}"
+          elif [[ -n "${{ inputs.version }}" ]]; then
+            version="${{ inputs.version }}"
+          else
+            version="$(gh release view --repo sharksrus/kfin --json tagName -q .tagName)"
+          fi
+
+          if [[ -z "${version}" ]]; then
+            echo "ERROR: unable to resolve release version"
+            exit 1
+          fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+        id: resolve_version
+
+      - name: Generate formula from release checksums
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          set -euo pipefail
+          ./scripts/generate-homebrew-formula.sh "${{ steps.resolve_version.outputs.version }}" Formula/kfin.rb
+
+      - name: Commit formula change to tap branch
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          set -euo pipefail
+          version="${{ steps.resolve_version.outputs.version }}"
+          branch="chore/kfin-${version}"
+          tap_dir="$(mktemp -d)"
+          trap 'rm -rf "${tap_dir}"' EXIT
+
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${TAP_REPO}.git" "${tap_dir}"
+          mkdir -p "${tap_dir}/Formula"
+          cp Formula/kfin.rb "${tap_dir}/Formula/kfin.rb"
+
+          cd "${tap_dir}"
+          if git diff --quiet -- Formula/kfin.rb; then
+            echo "No Homebrew formula changes detected; skipping PR."
+            exit 0
+          fi
+
+          git checkout -B "${branch}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/kfin.rb
+          git commit -m "kfin ${version}"
+          git push --force-with-lease origin "${branch}"
+          echo "branch=${branch}" >> "${GITHUB_OUTPUT}"
+        id: commit_tap
+
+      - name: Open or update pull request in tap repo
+        if: steps.commit_tap.outputs.branch != ''
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          set -euo pipefail
+          version="${{ steps.resolve_version.outputs.version }}"
+          branch="${{ steps.commit_tap.outputs.branch }}"
+          existing_pr="$(gh pr list --repo "${TAP_REPO}" --head "${branch}" --json number -q '.[0].number' || true)"
+
+          if [[ -n "${existing_pr}" ]]; then
+            echo "PR #${existing_pr} already exists for ${branch}"
+            exit 0
+          fi
+
+          gh pr create \
+            --repo "${TAP_REPO}" \
+            --base main \
+            --head "${branch}" \
+            --title "kfin ${version}" \
+            --body "Automated Homebrew formula update for ${version} from sharksrus/kfin release assets."

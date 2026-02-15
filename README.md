@@ -1,5 +1,7 @@
 # kfin
 
+[![Homebrew Tap Update](https://github.com/sharksrus/kfin/actions/workflows/homebrew-tap.yml/badge.svg)](https://github.com/sharksrus/kfin/actions/workflows/homebrew-tap.yml)
+
 `kfin` is a Kubernetes cost visibility CLI with:
 - terminal text analysis (`analyze`)
 - historical usage analysis (`history`)
@@ -83,6 +85,42 @@ cosign verify-blob \
 
 # 3) Sanity-check version metadata
 ./kfin --version
+```
+
+## Homebrew
+
+Homebrew is the easiest user install path and avoids most manual macOS quarantine friction.
+
+### Maintainer: publish/update formula for a release
+
+This repo includes `scripts/generate-homebrew-formula.sh` to create a formula from release checksum assets.
+
+```bash
+# Generate formula for a release tag
+./scripts/generate-homebrew-formula.sh v0.0.1 Formula/kfin.rb
+```
+
+Then copy `Formula/kfin.rb` to your tap repository (typically `sharksrus/homebrew-kfin`) and push it.
+
+Note: for `brew install` to work for everyone, release assets must be publicly downloadable.
+
+Automated option:
+
+- Workflow: `.github/workflows/homebrew-tap.yml`
+- Trigger: release published (or manual dispatch)
+- Target tap repo: `sharksrus/homebrew-kfin`
+- Required secrets in `sharksrus/kfin`:
+  - `HOMEBREW_APP_ID`
+  - `HOMEBREW_APP_PRIVATE_KEY`
+- GitHub App installation must include:
+  - `sharksrus/homebrew-kfin` with `Contents: Read and write`, `Pull requests: Read and write`
+  - `sharksrus/kfin` with read access if this repo is private
+
+### Users: install via tap
+
+```bash
+brew tap sharksrus/homebrew-kfin
+brew install kfin
 ```
 
 ## Usage

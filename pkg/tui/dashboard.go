@@ -198,16 +198,17 @@ Pods: %d  |  Nodes: %d  |  Namespaces: %d
 	pages.AddPage(pageNodes, nodesView, true, false)
 	pages.AddPage(pageNamespaces, nsView, true, false)
 
-	// ========== SHORTCUT BAR (k9s style at bottom) ==========
-	shortcutBar := tview.NewTextView().
+	// ========== TOP HEADER BAR (k9s style) ==========
+	headerBar := tview.NewTextView().
 		SetDynamicColors(true).
-		SetText(" ESC:Quit | 1:Overview | 2:Pods | 3:Nodes | 4:Namespace | ArrowKeys:Cycle ")
-	shortcutBar.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
+		SetText(fmt.Sprintf(" kFin | Context: %s | Nodes: %d | Monthly: $%.2f | 1:Overview 2:Pods 3:Nodes 4:NS ", 
+			"cluster", len(data.Nodes), data.TotalCost))
+	headerBar.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
 
 	// ========== MAIN LAYOUT ==========
 	mainLayout := tview.NewFlex().SetDirection(tview.FlexRow)
+	mainLayout.AddItem(headerBar, 1, 0, false)
 	mainLayout.AddItem(pages, 0, 1, true)
-	mainLayout.AddItem(shortcutBar, 1, 0, false)
 
 	// Key handler
 	mainLayout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {

@@ -47,7 +47,6 @@ func ShowDashboard(data ReportData) {
 
 	// Colors
 	white := tcell.ColorWhite
-	yellow := tcell.ColorYellow
 	purple := tcell.ColorPurple
 
 	// ========== MAIN CONTENT AREA ==========
@@ -91,11 +90,11 @@ Pods: %d  |  Nodes: %d  |  Namespaces: %d
 	}
 
 	// Total row
-	podTable.SetCell(row, 0, tview.NewTableCell("TOTAL").SetTextColor(yellow).SetAlign(tview.AlignLeft))
+	podTable.SetCell(row, 0, tview.NewTableCell("TOTAL").SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignLeft))
 	podTable.SetCell(row, 1, tview.NewTableCell("").SetAlign(tview.AlignLeft))
 	podTable.SetCell(row, 2, tview.NewTableCell("").SetAlign(tview.AlignRight))
 	podTable.SetCell(row, 3, tview.NewTableCell("").SetAlign(tview.AlignRight))
-	podTable.SetCell(row, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", totalCost)).SetTextColor(yellow).SetAlign(tview.AlignRight))
+	podTable.SetCell(row, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", totalCost)).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignRight))
 
 	podsView.AddItem(podTable, 0, 1, false)
 
@@ -121,11 +120,11 @@ Pods: %d  |  Nodes: %d  |  Namespaces: %d
 	}
 
 	// Total row
-	nodeTable.SetCell(len(data.Nodes)+1, 0, tview.NewTableCell("TOTAL").SetTextColor(yellow).SetAlign(tview.AlignLeft))
+	nodeTable.SetCell(len(data.Nodes)+1, 0, tview.NewTableCell("TOTAL").SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignLeft))
 	nodeTable.SetCell(len(data.Nodes)+1, 1, tview.NewTableCell("").SetAlign(tview.AlignRight))
 	nodeTable.SetCell(len(data.Nodes)+1, 2, tview.NewTableCell("").SetAlign(tview.AlignRight))
 	nodeTable.SetCell(len(data.Nodes)+1, 3, tview.NewTableCell("").SetAlign(tview.AlignRight))
-	nodeTable.SetCell(len(data.Nodes)+1, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", nodeTotal)).SetTextColor(yellow).SetAlign(tview.AlignRight))
+	nodeTable.SetCell(len(data.Nodes)+1, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", nodeTotal)).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignRight))
 
 	nodesView.AddItem(nodeTable, 0, 1, false)
 
@@ -180,10 +179,10 @@ Pods: %d  |  Nodes: %d  |  Namespaces: %d
 		}
 
 		// Total
-		podTable.SetCell(row, 0, tview.NewTableCell("TOTAL").SetTextColor(yellow).SetAlign(tview.AlignLeft))
+		podTable.SetCell(row, 0, tview.NewTableCell("TOTAL").SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignLeft))
 		podTable.SetCell(row, 1, tview.NewTableCell("").SetAlign(tview.AlignRight))
 		podTable.SetCell(row, 2, tview.NewTableCell("").SetAlign(tview.AlignRight))
-		podTable.SetCell(row, 3, tview.NewTableCell(fmt.Sprintf("$%.2f", nsPods.cost)).SetTextColor(yellow).SetAlign(tview.AlignRight))
+		podTable.SetCell(row, 3, tview.NewTableCell(fmt.Sprintf("$%.2f", nsPods.cost)).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignRight))
 
 		nsPage.AddItem(podTable, 0, 1, false)
 

@@ -31,6 +31,13 @@ type ReportData struct {
 	Nodes        []NodeInfo
 }
 
+const (
+	pageOverview    = "1"
+	pagePods       = "2"
+	pageNodes      = "3"
+	pageNamespaces = "4"
+)
+
 func ShowDashboard(data ReportData) {
 	app := tview.NewApplication()
 	pages := tview.NewPages()
@@ -39,34 +46,32 @@ func ShowDashboard(data ReportData) {
 	namespaces := getNamespaces(data.PodCosts)
 	namespaces = append([]string{"all"}, namespaces...)
 
+	// ========== MENU BAR (always visible) ==========
+	menuBar := tview.NewTextView().
+		SetText("[orange::b]kfin[/] | [::b]1[white]:Overview [::b]2[white]:Pods [::b]3[white]:Nodes [::b]4[white]:ByNamespace [::b]ESC[white]:Quit").
+		SetDynamicColors(true)
+	menuBar.SetBorder(false).SetBackgroundColor(tcell.ColorDarkBlue)
+
 	// ========== OVERVIEW VIEW ==========
 	overview := tview.NewFlex().SetDirection(tview.FlexRow)
-	
-	overview.AddItem(tview.NewTextView().
-		SetText("OVERVIEW"), 1, 0, false)
 
 	overviewText := fmt.Sprintf(`
 kfin - Kubernetes Cost Analyzer
 
 Monthly Cost: $%.2f
--------------------------------------
+----------------------------------------------------------------
 Hardware (amortized):  $%.2f
 Electricity:           $%.2f
 
 Total Pods: %d
 Nodes: %d
 Namespaces: %v
-
-Commands:
-[ESC] Quit  [1] Overview  [2] Pods  [3] Nodes  [4] By Namespace
 `, data.TotalCost, data.HardwareCost, data.ElecCost, len(data.PodCosts), len(data.Nodes), namespaces)
 
-	overview.AddItem(tview.NewTextView().SetText(overviewText), 0, 1, false)
+	overview.AddItem(tview.NewTextView().SetText(overviewText).SetDynamicColors(true), 0, 1, false)
 
 	// ========== PODS VIEW ==========
 	podsView := tview.NewFlex().SetDirection(tview.FlexRow)
-	podsView.AddItem(tview.NewTextView().
-		SetText("PODS"), 1, 0, false)
 
 	podTable := tview.NewTable().SetBorders(true)
 	podHeaders := []string{"Namespace", "Pod", "CPU", "Memory", "Cost"}
@@ -96,12 +101,9 @@ Commands:
 
 	podsView.AddItem(tview.NewTextView().SetText(fmt.Sprintf("\n Total Monthly Pod Cost: $%.2f\n", totalCost)), 1, 0, false)
 	podsView.AddItem(podTable, 0, 1, false)
-	podsView.AddItem(tview.NewTextView().SetText("\n [ESC] Quit  [1] Overview  [2] Pods  [3] Nodes  [4] By Namespace"), 1, 0, false)
 
 	// ========== NODES VIEW ==========
 	nodesView := tview.NewFlex().SetDirection(tview.FlexRow)
-	nodesView.AddItem(tview.NewTextView().
-		SetText("NODES"), 1, 0, false)
 
 	nodeTable := tview.NewTable().SetBorders(true)
 	nodeHeaders := []string{"Node", "Memory (GB)", "Hardware", "Electricity", "Total"}
@@ -130,12 +132,9 @@ Commands:
 
 	nodesView.AddItem(tview.NewTextView().SetText(fmt.Sprintf("\n Total Monthly Node Cost: $%.2f\n", nodeTotal)), 1, 0, false)
 	nodesView.AddItem(nodeTable, 0, 1, false)
-	nodesView.AddItem(tview.NewTextView().SetText("\n [ESC] Quit  [1] Overview  [2] Pods  [3] Nodes  [4] By Namespace"), 1, 0, false)
 
 	// ========== BY NAMESPACE VIEW ==========
 	nsView := tview.NewFlex().SetDirection(tview.FlexRow)
-	nsView.AddItem(tview.NewTextView().
-		SetText("COSTS BY NAMESPACE"), 1, 0, false)
 
 	nsTable := tview.NewTable().SetBorders(true)
 	nsHeaders := []string{"Namespace", "Pods", "Monthly Cost"}
@@ -180,47 +179,47 @@ Commands:
 
 	nsView.AddItem(tview.NewTextView().SetText(fmt.Sprintf("\n Total Monthly Cost: $%.2f\n", grandTotal)), 1, 0, false)
 	nsView.AddItem(nsTable, 0, 1, false)
-	nsView.AddItem(tview.NewTextView().SetText("\n [ESC] Quit  [1] Overview  [2] Pods  [3] Nodes  [4] By Namespace"), 1, 0, false)
 
 	// Add pages
-	pages.AddPage("1", overview, true, true)
-	pages.AddPage("2", podsView, true, false)
-	pages.AddPage("3", nodesView, true, false)
-	pages.AddPage("4", nsView, true, false)
+	pages.AddPage(pageOverview, overview, true, true)
+	pages.AddPage(pagePods, podsView, true, false)
+	pages.AddPage(pageNodes, nodesView, true, false)
+	pages.AddPage(pageNamespaces, nsView, true, false)
 
-	// Create a wrapper to handle keyboard events
-	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	container.AddItem(pages, 0, 1, true)
+	// Main layout with menu bar on top
+	mainLayout := tview.NewFlex().SetDirection(tview.FlexRow)
+	mainLayout.AddItem(menuBar, 1, 0, false)
+	mainLayout.AddItem(pages, 0, 1, true)
 
-	// Key handler - use tcell for key handling
-	container.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	// Key handler
+	mainLayout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEsc:
 			app.Stop()
 		case tcell.KeyF1:
-			pages.SwitchToPage("1")
+			pages.SwitchToPage(pageOverview)
 		case tcell.KeyF2:
-			pages.SwitchToPage("2")
+			pages.SwitchToPage(pagePods)
 		case tcell.KeyF3:
-			pages.SwitchToPage("3")
+			pages.SwitchToPage(pageNodes)
 		case tcell.KeyF4:
-			pages.SwitchToPage("4")
+			pages.SwitchToPage(pageNamespaces)
 		}
 		// Also handle number keys
 		switch string(event.Rune()) {
 		case "1":
-			pages.SwitchToPage("1")
+			pages.SwitchToPage(pageOverview)
 		case "2":
-			pages.SwitchToPage("2")
+			pages.SwitchToPage(pagePods)
 		case "3":
-			pages.SwitchToPage("3")
+			pages.SwitchToPage(pageNodes)
 		case "4":
-			pages.SwitchToPage("4")
+			pages.SwitchToPage(pageNamespaces)
 		}
 		return event
 	})
 
-	if err := app.SetRoot(container, true).Run(); err != nil {
+	if err := app.SetRoot(mainLayout, true).Run(); err != nil {
 		fmt.Printf("Error running TUI: %v\n", err)
 	}
 }

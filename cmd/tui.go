@@ -6,12 +6,12 @@ import (
 	"log"
 	"time"
 
+	"github.com/newman-bot/kfin/pkg/pdf"
+	"github.com/newman-bot/kfin/pkg/tui"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"github.com/newman-bot/kfin/pkg/pdf"
-	"github.com/newman-bot/kfin/pkg/tui"
 )
 
 func TuiCmd() *cobra.Command {
@@ -42,6 +42,7 @@ func runTui() {
 	if err != nil {
 		log.Fatalf("Failed to connect to cluster: %v", err)
 	}
+	contextName, clusterName := getKubeContextDetails()
 
 	ctx := context.Background()
 
@@ -66,6 +67,8 @@ func runTui() {
 		ElecCost:     elecCost,
 		TotalCost:    hardwareCost + elecCost,
 		Nodes:        nodeInfo,
+		ContextName:  contextName,
+		ClusterName:  clusterName,
 	}
 
 	tui.ShowDashboard(data)
@@ -76,6 +79,7 @@ func runPdf(output string) {
 	if err != nil {
 		log.Fatalf("Failed to connect to cluster: %v", err)
 	}
+	contextName, clusterName := getKubeContextDetails()
 
 	ctx := context.Background()
 
@@ -101,6 +105,8 @@ func runPdf(output string) {
 		TotalCost:    hardwareCost + elecCost,
 		Nodes:        nodeInfo,
 		GeneratedAt:  time.Now(),
+		ContextName:  contextName,
+		ClusterName:  clusterName,
 	}
 
 	if err := pdf.Generate(data, output); err != nil {
@@ -112,7 +118,7 @@ func runPdf(output string) {
 
 func getClientset() (*kubernetes.Clientset, error) {
 	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: clientcmd.RecommendedHomeFile},
+		clientcmd.NewDefaultClientConfigLoadingRules(),
 		&clientcmd.ConfigOverrides{},
 	)
 
@@ -122,4 +128,25 @@ func getClientset() (*kubernetes.Clientset, error) {
 	}
 
 	return kubernetes.NewForConfig(k8sConfig)
+}
+
+func getKubeContextDetails() (string, string) {
+	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(),
+		&clientcmd.ConfigOverrides{},
+	)
+	rawCfg, err := kubeconfig.RawConfig()
+	if err != nil {
+		return "unknown", "unknown"
+	}
+
+	contextName := rawCfg.CurrentContext
+	if contextName == "" {
+		contextName = "unknown"
+	}
+	clusterName := "unknown"
+	if ctx, ok := rawCfg.Contexts[rawCfg.CurrentContext]; ok && ctx != nil && ctx.Cluster != "" {
+		clusterName = ctx.Cluster
+	}
+	return contextName, clusterName
 }

@@ -3,6 +3,7 @@ module github.com/newman-bot/kfin
 go 1.22
 
 require (
+	github.com/gdamore/tcell/v2 v2.8.1
 	github.com/jung-kurt/gofpdf v1.16.2
 	github.com/rivo/tview v0.42.0
 	github.com/spf13/cobra v1.8.0
@@ -16,8 +17,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
-	github.com/gdamore/tcell v1.4.1 // indirect
-	github.com/gdamore/tcell/v2 v2.8.1 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect

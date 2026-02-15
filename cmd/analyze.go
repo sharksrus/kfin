@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"github.com/newman-bot/kfin/pkg/config"
 	"github.com/newman-bot/kfin/pkg/pdf"
 	"github.com/newman-bot/kfin/pkg/tui"
+	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var cfg *config.Config
@@ -75,7 +75,7 @@ func analyzeCluster() {
 	electricityCostMonthly := float64(len(nodes.Items)) * cfg.Pricing.WattsPerNode / 1000.0 * 730 * cfg.Pricing.ElectricityRate // 730 hours/month
 
 	fmt.Printf("Found %d pods across %d nodes\n\n", len(pods.Items), len(nodes.Items))
-	
+
 	// Print cost summary
 	fmt.Printf("=== Monthly Cost Summary ===\n")
 	fmt.Printf("Hardware (amortized): $%.2f\n", hardwareCostMonthly)
@@ -91,20 +91,20 @@ func analyzeCluster() {
 		for _, container := range pod.Spec.Containers {
 			cpu := container.Resources.Requests.Cpu()
 			mem := container.Resources.Requests.Memory()
-			
+
 			// Add to totals
 			totalCPU.Add(*cpu)
 			totalMem.Add(*mem)
 
 			// Calculate cost for this container
 			cost := calculateContainerCost(cpu, mem)
-			
+
 			// Only show containers with requests
 			if cost > 0 {
-				fmt.Printf("%-40s %-15s %-12s %-12s $%-11.2f\n", 
+				fmt.Printf("%-40s %-15s %-12s %-12s $%-11.2f\n",
 					truncate(container.Name, 40),
-					pod.Namespace, 
-					cpu.String(), 
+					pod.Namespace,
+					cpu.String(),
 					mem.String(),
 					cost)
 			}
@@ -113,16 +113,16 @@ func analyzeCluster() {
 
 	fmt.Println("================================================================================")
 	totalCost := calculateContainerCost(&totalCPU, &totalMem)
-	fmt.Printf("%-40s %-15s %-12s %-12s $%-11.2f\n", 
+	fmt.Printf("%-40s %-15s %-12s %-12s $%-11.2f\n",
 		"TOTAL", "", totalCPU.String(), totalMem.String(), totalCost)
-	
+
 	// Per-node breakdown
 	fmt.Printf("\n=== Node Hardware Costs (monthly) ===\n")
 	for _, node := range nodes.Items {
 		memGB := float64(node.Status.Capacity.Memory().Value()) / (1024 * 1024 * 1024)
 		nodeCost := memGB * cfg.Pricing.HardwareMonthlyPerGB
 		elecCost := cfg.Pricing.WattsPerNode / 1000.0 * 730 * cfg.Pricing.ElectricityRate
-		fmt.Printf("%s: $%.2f (hardware) + $%.2f (electricity) = $%.2f/month\n", 
+		fmt.Printf("%s: $%.2f (hardware) + $%.2f (electricity) = $%.2f/month\n",
 			node.Name, nodeCost, elecCost, nodeCost+elecCost)
 	}
 }
@@ -139,10 +139,10 @@ func calculateTotalMemoryGB(nodes []corev1.Node) float64 {
 func calculateContainerCost(cpu *resource.Quantity, mem *resource.Quantity) float64 {
 	// Cost based on hardware allocation (memory-based)
 	memGB := float64(mem.Value()) / (1024 * 1024 * 1024)
-	
+
 	// Hardware cost (allocated portion)
 	hardwareCost := memGB * cfg.Pricing.HardwareMonthlyPerGB
-	
+
 	return hardwareCost
 }
 

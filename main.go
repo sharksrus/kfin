@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/newman-bot/kfin/cmd"
+	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{

@@ -17,6 +17,18 @@
 go build -o kfin
 ```
 
+## Development Hooks
+
+Install repo-managed Git hooks (one-time per clone):
+
+```bash
+make hooks
+```
+
+This enables a `pre-commit` hook that:
+- runs `gofmt -w` on staged `.go` files
+- re-stages those formatted files before commit
+
 ## Download Prebuilt Binaries
 
 Grab binaries from the GitHub Releases page:

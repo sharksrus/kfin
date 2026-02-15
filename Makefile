@@ -1,4 +1,4 @@
-.PHONY: build run test clean
+.PHONY: build run analyze test clean deps hooks
 
 build:
 	go build -o kfin
@@ -18,3 +18,8 @@ clean:
 deps:
 	go mod download
 	go mod tidy
+
+hooks:
+	git config core.hooksPath .githooks
+	chmod +x .githooks/pre-commit
+	@echo "Git hooks installed from .githooks"

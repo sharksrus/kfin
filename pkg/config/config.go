@@ -11,15 +11,15 @@ type Config struct {
 }
 
 type PricingConfig struct {
-	HardwareMonthlyPerGB float64       `yaml:"hardware_monthly_per_gb"`
-	ElectricityRate       float64       `yaml:"electricity_rate"`       // $/kWh
-	WattsPerNode         float64       `yaml:"watts_per_node"`         // watts
-	Cloud                CloudPricing  `yaml:"cloud"`
+	HardwareMonthlyPerGB float64      `yaml:"hardware_monthly_per_gb"`
+	ElectricityRate      float64      `yaml:"electricity_rate"` // $/kWh
+	WattsPerNode         float64      `yaml:"watts_per_node"`   // watts
+	Cloud                CloudPricing `yaml:"cloud"`
 }
 
 type CloudPricing struct {
-	CPUPerHour    float64 `yaml:"cpu_per_hour"`    // $/vCPU/hour
-	MemPerGBHour  float64 `yaml:"mem_per_gb_hour"` // $/GB/hour
+	CPUPerHour   float64 `yaml:"cpu_per_hour"`    // $/vCPU/hour
+	MemPerGBHour float64 `yaml:"mem_per_gb_hour"` // $/GB/hour
 }
 
 func Load(path string) (*Config, error) {

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -42,6 +43,8 @@ func ShowDashboard(data ReportData) {
 	app := tview.NewApplication()
 	pages := tview.NewPages()
 	namespaces := getNamespaces(data.PodCosts)
+	// Sort namespaces alphabetically
+	sort.Strings(namespaces)
 
 	cyan := tcell.ColorDarkCyan
 	green := tcell.ColorGreen
@@ -72,10 +75,7 @@ func ShowDashboard(data ReportData) {
 	// ========== OVERVIEW VIEW ==========
 	overview := tview.NewFlex().SetDirection(tview.FlexRow)
 	overviewText := fmt.Sprintf(`
-  _ __  ___ | |/ _|| | |
- | '_ \ / _ \| |_| |_|| | |
- | | | |  __/| |  _|| |  |
- |_| |_|\___||_| |_||_||_|
+kFin - Kubernetes Cost Analyzer
 
  Monthly Cost: $%.2f
  Hardware:     $%.2f
@@ -199,6 +199,11 @@ func ShowDashboard(data ReportData) {
 	pages.AddPage(pagePods, podsView, true, false)
 	pages.AddPage(pageNodes, nodesView, true, false)
 	pages.AddPage(pageNamespaces, nsView, true, false)
+
+	// Show first namespace by default
+	if len(namespaces) > 0 {
+		nsPages.SwitchToPage("0")
+	}
 
 	// Bottom bar
 	shortcutBar := tview.NewTextView().

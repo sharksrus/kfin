@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/newman-bot/kfin/pkg/pdf"
+	"github.com/newman-bot/kfin/pkg/stats"
 	"github.com/newman-bot/kfin/pkg/tui"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,18 +62,79 @@ func runTui() {
 	podCosts := collectPodCosts(pods.Items)
 	nodeInfo := collectNodeInfo(nodes.Items)
 	hardwareCost, elecCost := calculateClusterCosts(nodes.Items)
+	statsFreshness := collectStatsFreshness()
 
 	data := tui.ReportData{
-		PodCosts:     podCosts,
-		HardwareCost: hardwareCost,
-		ElecCost:     elecCost,
-		TotalCost:    hardwareCost + elecCost,
-		Nodes:        nodeInfo,
-		ContextName:  contextName,
-		ClusterName:  clusterName,
+		PodCosts:       podCosts,
+		HardwareCost:   hardwareCost,
+		ElecCost:       elecCost,
+		TotalCost:      hardwareCost + elecCost,
+		Nodes:          nodeInfo,
+		ContextName:    contextName,
+		ClusterName:    clusterName,
+		StatsFreshness: statsFreshness,
 	}
 
 	tui.ShowDashboard(data)
+}
+
+func collectStatsFreshness() tui.StatsFreshness {
+	baseURL := strings.TrimSpace(cfg.Stats.BaseURL)
+	if baseURL == "" {
+		return tui.StatsFreshness{
+			Ready: false,
+			Note:  "No Prometheus endpoint configured",
+		}
+	}
+
+	lookbackHours := cfg.Stats.DefaultLookbackHours
+	if lookbackHours <= 0 {
+		lookbackHours = 24
+	}
+
+	timeout := time.Duration(cfg.Stats.QueryTimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = 15 * time.Second
+	}
+
+	client, err := stats.NewClient(baseURL, timeout)
+	if err != nil {
+		return tui.StatsFreshness{
+			Ready: false,
+			Note:  fmt.Sprintf("Stats client error: %v", err),
+		}
+	}
+
+	end := time.Now()
+	start := end.Add(-time.Duration(lookbackHours) * time.Hour)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	resp, err := client.QueryRange(ctx, defaultCPUQuery, start, end, 5*time.Minute)
+	if err != nil {
+		return tui.StatsFreshness{
+			Ready: false,
+			Note:  fmt.Sprintf("Stats query failed: %v", err),
+		}
+	}
+
+	pointStats := stats.GetSeriesPointStats(resp)
+	coverage := stats.GetCoverageStats(resp)
+	if !coverage.HasPoints {
+		return tui.StatsFreshness{
+			Ready: false,
+			Note:  "No Prometheus datapoints returned",
+		}
+	}
+
+	return tui.StatsFreshness{
+		Ready:            true,
+		BaseURL:          baseURL,
+		LookbackDuration: time.Duration(lookbackHours) * time.Hour,
+		ObservedDuration: coverage.ObservedDuration,
+		SampleCount:      pointStats.TotalPoints,
+		LastSampleAt:     coverage.Latest,
+	}
 }
 
 func runPdf(output string) {

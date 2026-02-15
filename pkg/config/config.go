@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	Pricing PricingConfig `yaml:"pricing"`
+	Stats   StatsConfig   `yaml:"stats"`
 }
 
 type PricingConfig struct {
@@ -22,15 +23,28 @@ type CloudPricing struct {
 	MemPerGBHour float64 `yaml:"mem_per_gb_hour"` // $/GB/hour
 }
 
+type StatsConfig struct {
+	BaseURL              string `yaml:"base_url"`
+	QueryTimeoutSeconds  int    `yaml:"query_timeout_seconds"`
+	DefaultLookbackHours int    `yaml:"default_lookback_hours"`
+}
+
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var cfg Config
+	cfg := *DefaultConfig()
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, err
+	}
+
+	if cfg.Stats.QueryTimeoutSeconds <= 0 {
+		cfg.Stats.QueryTimeoutSeconds = 15
+	}
+	if cfg.Stats.DefaultLookbackHours <= 0 {
+		cfg.Stats.DefaultLookbackHours = 24
 	}
 
 	return &cfg, nil
@@ -46,6 +60,11 @@ func DefaultConfig() *Config {
 				CPUPerHour:   0.025,
 				MemPerGBHour: 0.006,
 			},
+		},
+		Stats: StatsConfig{
+			BaseURL:              "",
+			QueryTimeoutSeconds:  15,
+			DefaultLookbackHours: 24,
 		},
 	}
 }

@@ -65,7 +65,9 @@ Electricity:           $%.2f
 Pods: %d  |  Nodes: %d  |  Namespaces: %d
 `, data.TotalCost, data.HardwareCost, data.ElecCost, len(data.PodCosts), len(data.Nodes), len(namespaces))
 
-	overview.AddItem(tview.NewTextView().SetText(overviewText).SetDynamicColors(true), 0, 1, false)
+	overviewView := tview.NewTextView().SetText(overviewText).SetDynamicColors(true)
+	overviewView.SetBorder(false)
+	overview.AddItem(overviewView, 0, 1, false)
 
 	// ========== PODS VIEW ==========
 	podsView := tview.NewFlex().SetDirection(tview.FlexRow)

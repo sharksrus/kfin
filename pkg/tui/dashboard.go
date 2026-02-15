@@ -211,11 +211,25 @@ Nodes: %d
 	pages.AddPage(pageNamespaces, nsView, true, false)
 
 	// ========== TOP HEADER BAR (k9s style) ==========
-	headerBar := tview.NewTextView().
-		SetDynamicColors(true).
-		SetText(fmt.Sprintf(" kFin | Context: %s | Nodes: %d | Monthly: $%.2f | 1:Overview 2:Pods 3:Nodes 4:NS ", 
-			"cluster", len(data.Nodes), data.TotalCost))
-	headerBar.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
+	headerBar := tview.NewFlex()
+	headerBar.SetDirection(tview.FlexColumn).SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
+
+	headerLeft := fmt.Sprintf(" Context: cluster | Nodes: %d | Monthly: $%.2f ", len(data.Nodes), data.TotalCost)
+	headerMid := " 1:Overview 2:Pods 3:Nodes 4:NS "
+	headerRight := " kFin "
+
+	headerLeftView := tview.NewTextView().SetText(headerLeft).SetDynamicColors(true)
+	headerLeftView.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
+
+	headerMidView := tview.NewTextView().SetText(headerMid).SetDynamicColors(true)
+	headerMidView.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
+
+	headerRightView := tview.NewTextView().SetText(headerRight).SetDynamicColors(true)
+	headerRightView.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
+
+	headerBar.AddItem(headerLeftView, 0, 1, false)
+	headerBar.AddItem(headerMidView, 0, 1, false)
+	headerBar.AddItem(headerRightView, 0, 1, false)
 
 	// ========== MAIN LAYOUT ==========
 	mainLayout := tview.NewFlex().SetDirection(tview.FlexRow)

@@ -41,15 +41,12 @@ const (
 func ShowDashboard(data ReportData) {
 	app := tview.NewApplication()
 	pages := tview.NewPages()
-
-	// Build namespace filter options
 	namespaces := getNamespaces(data.PodCosts)
 
-	// Colors - k9s style with cyan and green
 	cyan := tcell.ColorDarkCyan
 	green := tcell.ColorGreen
 
-	// ========== TOP HEADER BAR ==========
+	// ========== HEADER ==========
 	headerBar := tview.NewFlex()
 	headerBar.SetDirection(tview.FlexColumn).SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
 
@@ -74,16 +71,25 @@ func ShowDashboard(data ReportData) {
 
 	// ========== OVERVIEW VIEW ==========
 	overview := tview.NewFlex().SetDirection(tview.FlexRow)
+	overviewText := fmt.Sprintf(`
+  _ __  ___ | |/ _|| | |
+ | '_ \ / _ \| |_| |_|| | |
+ | | | |  __/| |  _|| |  |
+ |_| |_|\___||_| |_||_||_|
 
-	// Header text like analyze
-	overviewText := fmt.Sprintf("Found %d pods across %d nodes\n\n=== Monthly Cost Summary ===\nHardware (amortized): $%.2f\nElectricity: $%.2f\nTotal: $%.2f\n\n",
-		len(data.PodCosts), len(data.Nodes), data.HardwareCost, data.ElecCost, data.TotalCost)
+ Monthly Cost: $%.2f
+ Hardware:     $%.2f
+ Electricity:  $%.2f
+
+ Pods: %d | Nodes: %d | Namespaces: %d
+`, data.TotalCost, data.HardwareCost, data.ElecCost, len(data.PodCosts), len(data.Nodes), len(namespaces))
 
 	overviewView := tview.NewTextView().SetText(overviewText).SetDynamicColors(true)
 	overviewView.SetBorder(false)
 	overview.AddItem(overviewView, 0, 1, false)
 
-	// Pods table
+	// ========== PODS VIEW ==========
+	podsView := tview.NewFlex().SetDirection(tview.FlexRow)
 	podTable := tview.NewTable().SetBorders(true)
 	podHeaders := []string{"POD", "NAMESPACE", "CPU REQ", "MEM REQ", "MONTHLY $"}
 	for i, h := range podHeaders {
@@ -93,7 +99,6 @@ func ShowDashboard(data ReportData) {
 
 	row := 1
 	var podTotalCost float64
-	// totals
 	for _, pod := range data.PodCosts {
 		if pod.Cost > 0 {
 			podTable.SetCell(row, 0, tview.NewTableCell(pod.Name).SetAlign(tview.AlignLeft))
@@ -104,37 +109,16 @@ func ShowDashboard(data ReportData) {
 			podTotalCost += pod.Cost
 			row++
 		}
-		// totalCPU = pod.CPU
-		// totalMem = pod.Memory
 	}
-
-	// Total row
 	podTable.SetCell(row, 0, tview.NewTableCell("TOTAL").SetTextColor(green).SetAlign(tview.AlignLeft))
 	podTable.SetCell(row, 1, tview.NewTableCell("").SetAlign(tview.AlignLeft))
 	podTable.SetCell(row, 2, tview.NewTableCell("").SetAlign(tview.AlignRight))
 	podTable.SetCell(row, 3, tview.NewTableCell("").SetAlign(tview.AlignRight))
 	podTable.SetCell(row, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", podTotalCost)).SetTextColor(green).SetAlign(tview.AlignRight))
-
-	overview.AddItem(podTable, 0, 3, false)
-
-	// Node breakdown text
-	nodeText := "\n=== Node Hardware Costs (monthly) ===\n"
-	for _, node := range data.Nodes {
-		nodeText += fmt.Sprintf("%s: $%.2f (hardware) + $%.2f (electricity) = $%.2f/month\n",
-			node.Name, node.HardwareCost, node.ElecCost, node.TotalCost)
-	}
-
-	nodeView := tview.NewTextView().SetText(nodeText).SetDynamicColors(true)
-	nodeView.SetBorder(false)
-	overview.AddItem(nodeView, 0, 2, false)
-
-	// ========== PODS VIEW ==========
-	podsView := tview.NewFlex().SetDirection(tview.FlexRow)
 	podsView.AddItem(podTable, 0, 1, false)
 
 	// ========== NODES VIEW ==========
 	nodesView := tview.NewFlex().SetDirection(tview.FlexRow)
-
 	nodeTable := tview.NewTable().SetBorders(true)
 	nodeHeaders := []string{"NODE", "MEMORY", "HARDWARE", "ELECTRICITY", "TOTAL"}
 	for i, h := range nodeHeaders {
@@ -144,7 +128,7 @@ func ShowDashboard(data ReportData) {
 
 	var nodeTotal float64
 	for i, node := range data.Nodes {
-		row := i + 1
+		row = i + 1
 		nodeTable.SetCell(row, 0, tview.NewTableCell(node.Name).SetAlign(tview.AlignLeft))
 		nodeTable.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%.1fGB", node.MemoryGB)).SetAlign(tview.AlignRight))
 		nodeTable.SetCell(row, 2, tview.NewTableCell(fmt.Sprintf("$%.2f", node.HardwareCost)).SetAlign(tview.AlignRight))
@@ -152,18 +136,15 @@ func ShowDashboard(data ReportData) {
 		nodeTable.SetCell(row, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", node.TotalCost)).SetAlign(tview.AlignRight))
 		nodeTotal += node.TotalCost
 	}
-
 	nodeTable.SetCell(len(data.Nodes)+1, 0, tview.NewTableCell("TOTAL").SetTextColor(green).SetAlign(tview.AlignLeft))
 	nodeTable.SetCell(len(data.Nodes)+1, 1, tview.NewTableCell("").SetAlign(tview.AlignRight))
 	nodeTable.SetCell(len(data.Nodes)+1, 2, tview.NewTableCell("").SetAlign(tview.AlignRight))
 	nodeTable.SetCell(len(data.Nodes)+1, 3, tview.NewTableCell("").SetAlign(tview.AlignRight))
 	nodeTable.SetCell(len(data.Nodes)+1, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", nodeTotal)).SetTextColor(green).SetAlign(tview.AlignRight))
-
 	nodesView.AddItem(nodeTable, 0, 1, false)
 
 	// ========== BY NAMESPACE VIEW ==========
 	nsView := tview.NewFlex().SetDirection(tview.FlexRow)
-
 	type nsCostInfo struct {
 		count int
 		cost  float64
@@ -185,7 +166,6 @@ func ShowDashboard(data ReportData) {
 	for i, ns := range namespaces {
 		nsPods := nsInfo[ns]
 		nsPage := tview.NewFlex().SetDirection(tview.FlexRow)
-
 		nsPage.AddItem(tview.NewTextView().
 			SetText(fmt.Sprintf("Namespace: %s | Pods: %d | Monthly Cost: $%.2f", ns, nsPods.count, nsPods.cost)).
 			SetDynamicColors(true), 1, 0, false)
@@ -205,16 +185,13 @@ func ShowDashboard(data ReportData) {
 			podTable.SetCell(row, 3, tview.NewTableCell(fmt.Sprintf("$%.2f", pod.Cost)).SetAlign(tview.AlignRight))
 			row++
 		}
-
 		podTable.SetCell(row, 0, tview.NewTableCell("TOTAL").SetTextColor(green).SetAlign(tview.AlignLeft))
 		podTable.SetCell(row, 1, tview.NewTableCell("").SetAlign(tview.AlignRight))
 		podTable.SetCell(row, 2, tview.NewTableCell("").SetAlign(tview.AlignRight))
 		podTable.SetCell(row, 3, tview.NewTableCell(fmt.Sprintf("$%.2f", nsPods.cost)).SetTextColor(green).SetAlign(tview.AlignRight))
-
 		nsPage.AddItem(podTable, 0, 1, false)
 		nsPages.AddPage(fmt.Sprintf("%d", i), nsPage, true, false)
 	}
-
 	nsView.AddItem(nsPages, 0, 1, false)
 
 	// Add pages
@@ -223,35 +200,24 @@ func ShowDashboard(data ReportData) {
 	pages.AddPage(pageNodes, nodesView, true, false)
 	pages.AddPage(pageNamespaces, nsView, true, false)
 
-	// ========== BOTTOM SHORTCUT BAR ==========
+	// Bottom bar
 	shortcutBar := tview.NewTextView().
 		SetDynamicColors(true).
 		SetText(" <1>Overview <2>Pods <3>Nodes <4>Namespace <ESC>Quit ")
 	shortcutBar.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
 
-	// ========== MAIN LAYOUT ==========
 	mainLayout := tview.NewFlex().SetDirection(tview.FlexRow)
 	mainLayout.AddItem(headerBar, 2, 0, false)
 	mainLayout.AddItem(pages, 0, 1, true)
 	mainLayout.AddItem(shortcutBar, 1, 0, false)
 
-	// Key handler
 	mainLayout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		currentPage, _ := pages.GetFrontPage()
 
 		switch event.Key() {
 		case tcell.KeyEsc:
 			app.Stop()
-		case tcell.KeyF1:
-			pages.SwitchToPage(pageOverview)
-		case tcell.KeyF2:
-			pages.SwitchToPage(pagePods)
-		case tcell.KeyF3:
-			pages.SwitchToPage(pageNodes)
-		case tcell.KeyF4:
-			pages.SwitchToPage(pageNamespaces)
 		}
-
 		r := string(event.Rune())
 		switch r {
 		case "1":
@@ -263,7 +229,6 @@ func ShowDashboard(data ReportData) {
 		case "4":
 			pages.SwitchToPage(pageNamespaces)
 		}
-
 		if currentPage == pageNamespaces {
 			switch event.Key() {
 			case tcell.KeyRight, tcell.KeyDown:

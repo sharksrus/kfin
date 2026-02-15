@@ -46,8 +46,8 @@ jobs:
           build_number="${GITHUB_RUN_NUMBER:-0}"
           bin_name="kfin"
           archive_name="kfin_${GOOS}_${GOARCH}.tar.gz"
-          host_goos="$(go env GOOS)"
-          host_goarch="$(go env GOARCH)"
+          host_goos="$(go env GOHOSTOS)"
+          host_goarch="$(go env GOHOSTARCH)"
 
           if [[ "${GITHUB_EVENT_NAME}" == "release" && "${version}" == "dev" ]]; then
             echo "ERROR: release event resolved version to dev"

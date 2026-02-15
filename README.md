@@ -46,7 +46,16 @@ Grab binaries from the GitHub Releases page:
 - Linux arm64: https://github.com/sharksrus/kfin/releases/latest/download/kfin_linux_arm64.tar.gz
 - macOS arm64: https://github.com/sharksrus/kfin/releases/latest/download/kfin_darwin_arm64.tar.gz
 
-Note: binaries are published as **Release assets** (not GitHub Packages). If a direct link returns 404, check the release page first to confirm assets were attached.
+Note: binaries are published as **Release assets** (not GitHub Packages). If a direct link returns 404, check the release page first to confirm assets were attached. For private repos, use authenticated download via `gh` or a GitHub token.
+
+Private repo download example:
+
+```bash
+gh release download v0.0.1 -R sharksrus/kfin -p 'kfin_darwin_arm64.tar.gz'
+gh release download v0.0.1 -R sharksrus/kfin -p 'kfin_darwin_arm64.tar.gz.sha256'
+gh release download v0.0.1 -R sharksrus/kfin -p 'kfin_darwin_arm64.tar.gz.sig'
+gh release download v0.0.1 -R sharksrus/kfin -p 'kfin_darwin_arm64.tar.gz.sigstore.json'
+```
 
 Extract and run:
 
@@ -57,6 +66,24 @@ chmod +x kfin
 ```
 
 Each release also includes `.sha256` checksum files.
+
+Release verification checklist:
+
+```bash
+# 1) Verify checksum
+shasum -a 256 -c kfin_darwin_arm64.tar.gz.sha256
+
+# 2) Verify cosign signature/bundle (keyless)
+cosign verify-blob \
+  --signature kfin_darwin_arm64.tar.gz.sig \
+  --bundle kfin_darwin_arm64.tar.gz.sigstore.json \
+  --certificate-identity "https://github.com/sharksrus/kfin/.github/workflows/release.yml@refs/tags/v0.0.1" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  kfin_darwin_arm64.tar.gz
+
+# 3) Sanity-check version metadata
+./kfin --version
+```
 
 ## Usage
 
@@ -137,6 +164,10 @@ stats:
   - `linux/amd64`
   - `linux/arm64`
   - `darwin/arm64`
+
+## Security
+
+See `SECURITY.md` for vulnerability reporting and release verification guidance.
 
 ## License
 

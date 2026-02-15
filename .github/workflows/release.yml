@@ -108,6 +108,12 @@ jobs:
 
       - name: Setup cosign
         uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+        with:
+          # Pin cosign CLI to avoid breaking changes in bundle verification semantics.
+          cosign-release: v2.4.1
+
+      - name: Show cosign version
+        run: cosign version
 
       - name: Sign release artifacts (keyless)
         run: |

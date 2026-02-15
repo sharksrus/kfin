@@ -43,3 +43,37 @@ jobs:
       - name: Build
         run: go build ./...
 
+  scan:
+    name: Trivy Filesystem Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout (for Trivy filesystem scan)
+        uses: actions/checkout@v4
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.34.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          output: trivy-fs.txt
+
+      - name: Write scan results to job summary
+        if: always()
+        run: |
+          echo "## Trivy Filesystem Scan" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f trivy-fs.txt ]; then
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat trivy-fs.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No results" >> "$GITHUB_STEP_SUMMARY"
+          fi

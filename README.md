@@ -8,6 +8,10 @@
 - interactive TUI dashboard (`tui`)
 - PDF report export (`pdf`)
 
+## Preview
+
+![kfin TUI dashboard](docs/screenshots/tui-rates-mcp.png)
+
 ## Prerequisites
 
 - Go (for local builds)
@@ -192,6 +196,14 @@ Export PDF report:
 ./kfin pdf
 ./kfin pdf -o kfin-report.pdf
 ```
+
+## Screenshots
+
+- `tui` showing active pricing source/rates: ![TUI rates MCP](docs/screenshots/tui-rates-mcp.png)
+- `history` with config pricing: ![History config pricing](docs/screenshots/history-config-pricing.png)
+- `history` with MCP pricing: ![History MCP pricing](docs/screenshots/history-mcp-pricing.png)
+- `analyze` summary with MCP-backed rates: ![Analyze summary MCP](docs/screenshots/analyze-summary-mcp.png)
+- MCP wrapper output (JSON rates): ![MCP wrapper output](docs/screenshots/mcp-wrapper-json.png)
 
 ## Shell Completion
 

@@ -8,6 +8,10 @@
 - interactive TUI dashboard (`tui`)
 - PDF report export (`pdf`)
 
+## Preview
+
+![kfin TUI dashboard](examples/screenshots/tui-rates-mcp.png)
+
 ## Prerequisites
 
 - Go (for local builds)
@@ -39,14 +43,32 @@ This enables a `pre-commit` hook that:
 - runs `gofmt -w` on staged `.go` files
 - re-stages those formatted files before commit
 
-## Download Prebuilt Binaries
+## Install
 
-Grab binaries from the GitHub Releases page:
+Homebrew (recommended):
+
+```bash
+brew tap sharksrus/homebrew-kfin
+brew install kfin
+```
+
+Manual download from GitHub Releases (latest):
 
 - Latest release page: https://github.com/sharksrus/kfin/releases/latest
 - Linux amd64: https://github.com/sharksrus/kfin/releases/latest/download/kfin_linux_amd64.tar.gz
 - Linux arm64: https://github.com/sharksrus/kfin/releases/latest/download/kfin_linux_arm64.tar.gz
 - macOS arm64: https://github.com/sharksrus/kfin/releases/latest/download/kfin_darwin_arm64.tar.gz
+
+macOS short-term note (until Apple Developer signing/notarization is in place):
+
+```bash
+tar -xzf kfin_darwin_arm64.tar.gz
+chmod +x ./kfin
+xattr -dr com.apple.quarantine ./kfin
+./kfin --version
+```
+
+If macOS still blocks execution, allow it once in `System Settings` -> `Privacy & Security` and run again.
 
 Note: binaries are published as **Release assets** (not GitHub Packages). If a direct link returns 404, check the release page first to confirm assets were attached. For private repos, use authenticated download via `gh` or a GitHub token.
 
@@ -114,14 +136,7 @@ Automated option:
   - `HOMEBREW_APP_PRIVATE_KEY`
 - GitHub App installation must include:
   - `sharksrus/homebrew-kfin` with `Contents: Read and write`, `Pull requests: Read and write`
-  - `sharksrus/kfin` with read access if this repo is private
-
-### Users: install via tap
-
-```bash
-brew tap sharksrus/homebrew-kfin
-brew install kfin
-```
+- `sharksrus/kfin` with read access if this repo is private
 
 ## Usage
 
@@ -137,12 +152,47 @@ Text analysis report:
 ./kfin analyze
 ```
 
+`analyze`/`tui`/`pdf` pricing behavior:
+
+- Pod/container costs use cloud usage rates.
+  - Default source: `pricing.cloud` in `config.yaml`.
+  - If `pricing.mcp.command` is set, `kfin` attempts MCP pricing first and falls back to `pricing.cloud` on failure.
+- Cluster totals include:
+  - node hardware cost (instance override or memory-based fallback)
+  - electricity cost
+  - EKS control plane cost (`pricing.eks.control_plane_per_hour * 730`) when an EKS cluster is detected from node metadata.
+
 Historical usage summary:
 
 ```bash
 ./kfin history
 ./kfin history --hours 168 --step 15m
 ./kfin history --hours 24 --step 1m --debug
+```
+
+History pricing modes:
+
+```bash
+# Default: pricing from config.yaml (pricing.cloud.*)
+./kfin history --pricing-source config --hours 1 --step 1m --debug
+
+# MCP mode using AWS-derived split-instance rates
+./kfin history --pricing-source mcp \
+  --pricing-mcp-command ./scripts/aws-pricing-rates.sh \
+  --pricing-mcp-arg c6a.large \
+  --pricing-mcp-arg "US East (Ohio)" \
+  --hours 1 --step 1m --debug
+
+# MCP mode using explicit calibrated rates
+./kfin history --pricing-source mcp \
+  --pricing-mcp-command ./scripts/aws-pricing-rates.sh \
+  --pricing-mcp-arg --mode \
+  --pricing-mcp-arg explicit-rates \
+  --pricing-mcp-arg --cpu-rate \
+  --pricing-mcp-arg 0.031 \
+  --pricing-mcp-arg --mem-rate \
+  --pricing-mcp-arg 0.0045 \
+  --hours 1 --step 1m --debug
 ```
 
 Interactive dashboard:
@@ -157,6 +207,14 @@ Export PDF report:
 ./kfin pdf
 ./kfin pdf -o kfin-report.pdf
 ```
+
+## Screenshots
+
+- `tui` showing active pricing source/rates: ![TUI rates MCP](examples/screenshots/tui-rates-mcp.png)
+- `history` with config pricing: ![History config pricing](examples/screenshots/history-config-pricing.png)
+- `history` with MCP pricing: ![History MCP pricing](examples/screenshots/history-mcp-pricing.png)
+- `analyze` summary with MCP-backed rates: ![Analyze summary MCP](examples/screenshots/analyze-summary-mcp.png)
+- MCP wrapper output (JSON rates): ![MCP wrapper output](examples/screenshots/mcp-wrapper-json.png)
 
 ## Shell Completion
 
@@ -185,6 +243,11 @@ mkdir -p "${HOME}/.zfunc"
 ## Configuration
 
 `kfin` reads `config.yaml` from the current working directory.
+Use one of these templates and copy it to `config.yaml`:
+
+- `examples/config.basic.yaml` for baseline local/hybrid setup
+- `examples/config.eks.yaml` for EKS-focused setup (instance-type cost mapping + control plane)
+- `examples/config.mcp.yaml` for MCP-backed usage pricing
 
 For historical usage queries, configure:
 
@@ -194,6 +257,32 @@ stats:
   query_timeout_seconds: 15
   default_lookback_hours: 24
 ```
+
+Pricing provider configuration example:
+
+```yaml
+pricing:
+  eks:
+    control_plane_per_hour: 0.10
+  cloud:
+    cpu_per_hour: 0.025
+    mem_per_gb_hour: 0.006
+  mcp:
+    command: "./scripts/aws-pricing-rates.sh"
+    args: ["c6a.large", "US East (Ohio)"]
+```
+
+`scripts/aws-pricing-rates.sh` output modes:
+
+- `split-instance` (default): derives `cpu_per_hour` and `mem_per_gb_hour` by splitting one instance hourly price across vCPU and GiB.
+- `explicit-rates`: uses provided calibrated rates.
+  - Example:
+    - `./scripts/aws-pricing-rates.sh --mode explicit-rates --cpu-rate 0.031 --mem-rate 0.0045`
+
+AWS auth note for MCP pricing:
+
+- `scripts/aws-pricing-rates.sh` calls AWS Pricing API through `aws` CLI.
+- You must have an active AWS CLI auth session/profile (for example `aws sso login --profile <profile>`), or the MCP pricing command will fail.
 
 ## CI/CD
 

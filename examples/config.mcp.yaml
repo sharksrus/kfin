@@ -1,0 +1,26 @@
+# MCP pricing config (AWS pricing via wrapper script)
+pricing:
+  hardware_monthly_per_gb: 0.26
+  electricity_rate: 0.113640
+  watts_per_node: 15
+
+  eks:
+    control_plane_per_hour: 0.10
+
+  cloud:
+    # Fallback rates if MCP command fails
+    cpu_per_hour: 0.025
+    mem_per_gb_hour: 0.006
+
+  mcp:
+    command: "./scripts/aws-pricing-rates.sh"
+    # Option 1: split instance hourly price across vCPU+GiB
+    args: ["c6a.large", "US East (Ohio)"]
+    # Option 2: explicit calibrated rates
+    # args: ["--mode", "explicit-rates", "--cpu-rate", "0.031", "--mem-rate", "0.0045"]
+
+stats:
+  # Replace with your Prometheus endpoint
+  base_url: "http://prometheus.example.internal"
+  query_timeout_seconds: 15
+  default_lookback_hours: 24

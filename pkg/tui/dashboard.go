@@ -46,7 +46,6 @@ func ShowDashboard(data ReportData) {
 	namespaces := getNamespaces(data.PodCosts)
 
 	// Colors
-	white := tcell.ColorWhite
 	purple := tcell.ColorPurple
 
 	// ========== MAIN CONTENT AREA ==========
@@ -75,7 +74,7 @@ Pods: %d  |  Nodes: %d  |  Namespaces: %d
 	podTable := tview.NewTable().SetBorders(true)
 	podHeaders := []string{"Namespace", "Pod", "CPU", "Memory", "Cost"}
 	for i, h := range podHeaders {
-		c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(white).SetBackgroundColor(purple)
+		c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(purple).SetBackgroundColor(tcell.ColorBlack)
 		podTable.SetCell(0, i, c)
 	}
 
@@ -106,7 +105,7 @@ Pods: %d  |  Nodes: %d  |  Namespaces: %d
 	nodeTable := tview.NewTable().SetBorders(true)
 	nodeHeaders := []string{"Node", "Memory (GB)", "Hardware", "Electricity", "Total"}
 	for i, h := range nodeHeaders {
-		c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(white).SetBackgroundColor(purple)
+		c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(purple).SetBackgroundColor(tcell.ColorBlack)
 		nodeTable.SetCell(0, i, c)
 	}
 
@@ -167,7 +166,7 @@ Pods: %d  |  Nodes: %d  |  Namespaces: %d
 		podTable := tview.NewTable().SetBorders(true)
 		headers := []string{"Pod", "CPU", "Memory", "Cost"}
 		for j, h := range headers {
-			c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(white).SetBackgroundColor(purple)
+			c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(purple).SetBackgroundColor(tcell.ColorBlack)
 			podTable.SetCell(0, j, c)
 		}
 

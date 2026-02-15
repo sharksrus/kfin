@@ -74,18 +74,19 @@ func ShowDashboard(data ReportData) {
 
 	// ========== OVERVIEW VIEW ==========
 	overview := tview.NewFlex().SetDirection(tview.FlexRow)
+	
+	// Cost summary
 	overviewText := fmt.Sprintf(`
-kFin - Kubernetes Cost Analyzer
+=== Monthly Cost Summary ===
+Hardware (amortized): $%.2f
+Electricity:         $%.2f
+Total:               $%.2f
 
- Monthly Cost: $%.2f
- Hardware:     $%.2f
- Electricity:  $%.2f
-
- Pods: %d | Nodes: %d | Namespaces: %d
-`, data.TotalCost, data.HardwareCost, data.ElecCost, len(data.PodCosts), len(data.Nodes), len(namespaces))
+Pods: %d | Nodes: %d | Namespaces: %d
+`, data.HardwareCost, data.ElecCost, data.TotalCost, len(data.PodCosts), len(data.Nodes), len(namespaces))
 
 	overviewView := tview.NewTextView().SetText(overviewText).SetDynamicColors(true)
-	overviewView.SetBorder(false)
+	overviewView.SetBorder(true).SetBorderColor(cyan)
 	overview.AddItem(overviewView, 0, 1, false)
 
 	// ========== PODS VIEW ==========

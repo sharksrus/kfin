@@ -46,7 +46,7 @@ func ShowDashboard(data ReportData) {
 	namespaces := getNamespaces(data.PodCosts)
 
 	// Colors
-	blue := tcell.ColorBlue
+	lightBlue := tcell.ColorLightBlue
 
 	// ========== MAIN CONTENT AREA ==========
 
@@ -64,17 +64,29 @@ Electricity:           $%.2f
 Pods: %d  |  Nodes: %d  |  Namespaces: %d
 `, data.TotalCost, data.HardwareCost, data.ElecCost, len(data.PodCosts), len(data.Nodes), len(namespaces))
 
+	overviewRightText := fmt.Sprintf(`
+kfin
+
+Monthly: $%.2f
+Nodes: %d
+`, data.TotalCost, len(data.Nodes))
+
 	overviewView := tview.NewTextView().SetText(overviewText).SetDynamicColors(true)
 	overviewView.SetBorder(false)
-	overview.AddItem(overviewView, 0, 1, false)
+	
+	overviewRightView := tview.NewTextView().SetText(overviewRightText).SetDynamicColors(true)
+	overviewRightView.SetBorder(false)
+
+	overview.AddItem(overviewView, 0, 1, true)
+	overview.AddItem(overviewRightView, 0, 1, true)
 
 	// ========== PODS VIEW ==========
 	podsView := tview.NewFlex().SetDirection(tview.FlexRow)
 
-	podTable := tview.NewTable().SetBorders(true)
+	podTable := tview.NewTable().SetBorders(false)
 	podHeaders := []string{" Namespace ", " Pod ", " CPU ", " Memory ", " Cost "}
 	for i, h := range podHeaders {
-		c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(blue).SetBackgroundColor(tcell.ColorBlack)
+		c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(lightBlue).SetBackgroundColor(tcell.ColorBlack)
 		podTable.SetCell(0, i, c)
 	}
 
@@ -102,10 +114,10 @@ Pods: %d  |  Nodes: %d  |  Namespaces: %d
 	// ========== NODES VIEW ==========
 	nodesView := tview.NewFlex().SetDirection(tview.FlexRow)
 
-	nodeTable := tview.NewTable().SetBorders(true)
+	nodeTable := tview.NewTable().SetBorders(false)
 	nodeHeaders := []string{" Node ", " Memory (GB) ", " Hardware ", " Electricity ", " Total "}
 	for i, h := range nodeHeaders {
-		c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(blue).SetBackgroundColor(tcell.ColorBlack)
+		c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(lightBlue).SetBackgroundColor(tcell.ColorBlack)
 		nodeTable.SetCell(0, i, c)
 	}
 
@@ -163,10 +175,10 @@ Pods: %d  |  Nodes: %d  |  Namespaces: %d
 			SetDynamicColors(true), 1, 0, false)
 
 		// Pods in this namespace
-		podTable := tview.NewTable().SetBorders(true)
+		podTable := tview.NewTable().SetBorders(false)
 		headers := []string{" Pod ", " CPU ", " Memory ", " Cost "}
 		for j, h := range headers {
-			c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(blue).SetBackgroundColor(tcell.ColorBlack)
+			c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(lightBlue).SetBackgroundColor(tcell.ColorBlack)
 			podTable.SetCell(0, j, c)
 		}
 

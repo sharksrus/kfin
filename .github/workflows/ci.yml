@@ -42,22 +42,71 @@ jobs:
         run: go test ./...
 
       - name: Build
-        run: go build ./...
+        run: |
+          mkdir -p dist
+          go build -o dist/kfin .
 
-  scan:
-    name: Trivy Filesystem Scan
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-build-output
+          path: dist/kfin
+
+  scan-build:
+    name: Trivy Scan (Build Artifact)
     runs-on:
       group: moar-linux
+    needs: lint-build
     timeout-minutes: 20
     permissions:
       contents: read
       actions: read
 
     steps:
-      - name: Checkout (for Trivy filesystem scan)
-        uses: actions/checkout@v4
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-build-output
+          path: dist
 
-      - name: Trivy filesystem scan
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@0.34.0
+        with:
+          scan-type: fs
+          scan-ref: dist
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          output: trivy-build.txt
+
+      - name: Write scan results to job summary
+        if: always()
+        run: |
+          echo "## Trivy Scan (Build Artifact)" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f trivy-build.txt ]; then
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat trivy-build.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No results" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  scan-source:
+    name: Trivy Scan (Source Tree)
+    runs-on:
+      group: moar-linux
+    needs: lint-build
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Trivy scan
         uses: aquasecurity/trivy-action@0.34.0
         with:
           scan-type: fs
@@ -66,15 +115,15 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
-          output: trivy-fs.txt
+          output: trivy-src.txt
 
       - name: Write scan results to job summary
         if: always()
         run: |
-          echo "## Trivy Filesystem Scan" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f trivy-fs.txt ]; then
+          echo "## Trivy Scan (Source Tree)" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f trivy-src.txt ]; then
             echo '```' >> "$GITHUB_STEP_SUMMARY"
-            cat trivy-fs.txt >> "$GITHUB_STEP_SUMMARY"
+            cat trivy-src.txt >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           else
             echo "No results" >> "$GITHUB_STEP_SUMMARY"

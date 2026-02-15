@@ -46,9 +46,9 @@ func ShowDashboard(data ReportData) {
 	namespaces := getNamespaces(data.PodCosts)
 
 	// Colors
-	blue := tcell.ColorDarkBlue
 	white := tcell.ColorWhite
 	yellow := tcell.ColorYellow
+	purple := tcell.ColorPurple
 
 	// ========== MAIN CONTENT AREA ==========
 
@@ -74,7 +74,7 @@ Pods: %d  |  Nodes: %d  |  Namespaces: %d
 	podTable := tview.NewTable().SetBorders(true)
 	podHeaders := []string{"Namespace", "Pod", "CPU", "Memory", "Cost"}
 	for i, h := range podHeaders {
-		c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(white).SetBackgroundColor(blue)
+		c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(white).SetBackgroundColor(purple)
 		podTable.SetCell(0, i, c)
 	}
 
@@ -105,7 +105,7 @@ Pods: %d  |  Nodes: %d  |  Namespaces: %d
 	nodeTable := tview.NewTable().SetBorders(true)
 	nodeHeaders := []string{"Node", "Memory (GB)", "Hardware", "Electricity", "Total"}
 	for i, h := range nodeHeaders {
-		c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(white).SetBackgroundColor(blue)
+		c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(white).SetBackgroundColor(purple)
 		nodeTable.SetCell(0, i, c)
 	}
 
@@ -166,7 +166,7 @@ Pods: %d  |  Nodes: %d  |  Namespaces: %d
 		podTable := tview.NewTable().SetBorders(true)
 		headers := []string{"Pod", "CPU", "Memory", "Cost"}
 		for j, h := range headers {
-			c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(white).SetBackgroundColor(blue)
+			c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(white).SetBackgroundColor(purple)
 			podTable.SetCell(0, j, c)
 		}
 
@@ -200,7 +200,8 @@ Pods: %d  |  Nodes: %d  |  Namespaces: %d
 
 	// ========== SHORTCUT BAR (k9s style at bottom) ==========
 	shortcutBar := tview.NewTextView().
-		SetText("kfin: [1]Overview  [2]Pods  [3]Nodes  [4]Namespace  [ESC]Quit  [←→]Cycle NS")
+		SetDynamicColors(true).
+		SetText("[yellow][ESC][white] Quit                                                                                      kfin: [yellow][1][white]Overview  [yellow][2][white]Pods  [yellow][3][white]Nodes  [yellow][4][white]Namespace  [yellow][←→][white]Cycle NS")
 	shortcutBar.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
 
 	// ========== MAIN LAYOUT ==========

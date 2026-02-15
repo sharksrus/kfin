@@ -45,19 +45,16 @@ func ShowDashboard(data ReportData) {
 	// Build namespace filter options
 	namespaces := getNamespaces(data.PodCosts)
 
-	// Colors - k9s style with green and blue
+	// Colors - k9s style with cyan and green
 	cyan := tcell.ColorDarkCyan
 	green := tcell.ColorGreen
 
-	// ========== TOP HEADER BAR (k9s style) ==========
+	// ========== TOP HEADER BAR ==========
 	headerBar := tview.NewFlex()
 	headerBar.SetDirection(tview.FlexColumn).SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
 
-	// Top line: logo and context
-	headerTop := fmt.Sprintf("kFin | Context:cluster | Nodes:%d | Monthly:$%.2f | CPU:1%% | MEM:22%%", 
-		len(data.Nodes), data.TotalCost)
+	headerTop := fmt.Sprintf("kFin | Context:cluster | Nodes:%d | Monthly:$%.2f", len(data.Nodes), data.TotalCost)
 
-	// Second line: namespace shortcuts (like k9s)
 	var nsShortcuts string
 	for i, ns := range namespaces {
 		if i < 8 {
@@ -75,53 +72,40 @@ func ShowDashboard(data ReportData) {
 	headerBar.AddItem(headerTopView, 1, 0, false)
 	headerBar.AddItem(headerMidView, 1, 0, false)
 
-	// ========== MAIN CONTENT AREA ==========
-
 	// ========== OVERVIEW VIEW ==========
 	overview := tview.NewFlex().SetDirection(tview.FlexRow)
 
-	// Show analyze info on overview
-	overviewText := fmt.Sprintf(`Monthly Cost: $%.2f
-  Hardware (amortized):  $%.2f
-  Electricity:           $%.2f
-
-Pods: %d | Nodes: %d
-`, data.TotalCost, data.HardwareCost, data.ElecCost, len(data.PodCosts), len(data.Nodes))
+	// Header text like analyze
+	overviewText := fmt.Sprintf("Found %d pods across %d nodes\n\n=== Monthly Cost Summary ===\nHardware (amortized): $%.2f\nElectricity: $%.2f\nTotal: $%.2f\n\n",
+		len(data.PodCosts), len(data.Nodes), data.HardwareCost, data.ElecCost, data.TotalCost)
 
 	overviewView := tview.NewTextView().SetText(overviewText).SetDynamicColors(true)
 	overviewView.SetBorder(false)
-	overview.AddItem(overviewView, 0, 2, false)
+	overview.AddItem(overviewView, 0, 1, false)
 
-	// Add cost summary table
-	costTable := tview.NewTable().SetBorders(false)
-	costTable.SetCell(0, 0, tview.NewTableCell("Cost Type").SetTextColor(cyan))
-	costTable.SetCell(0, 1, tview.NewTableCell("Monthly").SetTextColor(cyan))
-	costTable.SetCell(1, 0, tview.NewTableCell("Hardware").SetAlign(tview.AlignLeft))
-	costTable.SetCell(1, 1, tview.NewTableCell(fmt.Sprintf("$%.2f", data.HardwareCost)).SetAlign(tview.AlignRight))
-	costTable.SetCell(2, 0, tview.NewTableCell("Electricity").SetAlign(tview.AlignLeft))
-	costTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("$%.2f", data.ElecCost)).SetAlign(tview.AlignRight))
-	costTable.SetCell(3, 0, tview.NewTableCell("TOTAL").SetTextColor(green).SetAlign(tview.AlignLeft))
-	costTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("$%.2f", data.TotalCost)).SetTextColor(green).SetAlign(tview.AlignRight))
-	overview.AddItem(costTable, 0, 1, false)
-
-	// ========== PODS VIEW ==========
-	podTable := tview.NewTable().SetBorders(false)
-	podHeaders := []string{"NAMESPACE", "NAME", "CPU", "MEM", "COST"}
+	// Pods table
+	podTable := tview.NewTable().SetBorders(true)
+	podHeaders := []string{"POD", "NAMESPACE", "CPU REQ", "MEM REQ", "MONTHLY $"}
 	for i, h := range podHeaders {
 		c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(cyan)
 		podTable.SetCell(0, i, c)
 	}
 
 	row := 1
-	var totalCost float64
+	var podTotalCost float64
+	// totals
 	for _, pod := range data.PodCosts {
-		podTable.SetCell(row, 0, tview.NewTableCell(pod.Namespace).SetAlign(tview.AlignLeft))
-		podTable.SetCell(row, 1, tview.NewTableCell(pod.Name).SetAlign(tview.AlignLeft))
-		podTable.SetCell(row, 2, tview.NewTableCell(pod.CPU).SetAlign(tview.AlignRight))
-		podTable.SetCell(row, 3, tview.NewTableCell(pod.Memory).SetAlign(tview.AlignRight))
-		podTable.SetCell(row, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", pod.Cost)).SetAlign(tview.AlignRight))
-		totalCost += pod.Cost
-		row++
+		if pod.Cost > 0 {
+			podTable.SetCell(row, 0, tview.NewTableCell(pod.Name).SetAlign(tview.AlignLeft))
+			podTable.SetCell(row, 1, tview.NewTableCell(pod.Namespace).SetAlign(tview.AlignLeft))
+			podTable.SetCell(row, 2, tview.NewTableCell(pod.CPU).SetAlign(tview.AlignRight))
+			podTable.SetCell(row, 3, tview.NewTableCell(pod.Memory).SetAlign(tview.AlignRight))
+			podTable.SetCell(row, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", pod.Cost)).SetAlign(tview.AlignRight))
+			podTotalCost += pod.Cost
+			row++
+		}
+		// totalCPU = pod.CPU
+		// totalMem = pod.Memory
 	}
 
 	// Total row
@@ -129,7 +113,20 @@ Pods: %d | Nodes: %d
 	podTable.SetCell(row, 1, tview.NewTableCell("").SetAlign(tview.AlignLeft))
 	podTable.SetCell(row, 2, tview.NewTableCell("").SetAlign(tview.AlignRight))
 	podTable.SetCell(row, 3, tview.NewTableCell("").SetAlign(tview.AlignRight))
-	podTable.SetCell(row, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", totalCost)).SetTextColor(green).SetAlign(tview.AlignRight))
+	podTable.SetCell(row, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", podTotalCost)).SetTextColor(green).SetAlign(tview.AlignRight))
+
+	overview.AddItem(podTable, 0, 3, false)
+
+	// Node breakdown text
+	nodeText := "\n=== Node Hardware Costs (monthly) ===\n"
+	for _, node := range data.Nodes {
+		nodeText += fmt.Sprintf("%s: $%.2f (hardware) + $%.2f (electricity) = $%.2f/month\n",
+			node.Name, node.HardwareCost, node.ElecCost, node.TotalCost)
+	}
+
+	nodeView := tview.NewTextView().SetText(nodeText).SetDynamicColors(true)
+	nodeView.SetBorder(false)
+	overview.AddItem(nodeView, 0, 2, false)
 
 	// ========== PODS VIEW ==========
 	podsView := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -138,7 +135,7 @@ Pods: %d | Nodes: %d
 	// ========== NODES VIEW ==========
 	nodesView := tview.NewFlex().SetDirection(tview.FlexRow)
 
-	nodeTable := tview.NewTable().SetBorders(false)
+	nodeTable := tview.NewTable().SetBorders(true)
 	nodeHeaders := []string{"NODE", "MEMORY", "HARDWARE", "ELECTRICITY", "TOTAL"}
 	for i, h := range nodeHeaders {
 		c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(cyan)
@@ -156,7 +153,6 @@ Pods: %d | Nodes: %d
 		nodeTotal += node.TotalCost
 	}
 
-	// Total row
 	nodeTable.SetCell(len(data.Nodes)+1, 0, tview.NewTableCell("TOTAL").SetTextColor(green).SetAlign(tview.AlignLeft))
 	nodeTable.SetCell(len(data.Nodes)+1, 1, tview.NewTableCell("").SetAlign(tview.AlignRight))
 	nodeTable.SetCell(len(data.Nodes)+1, 2, tview.NewTableCell("").SetAlign(tview.AlignRight))
@@ -168,7 +164,6 @@ Pods: %d | Nodes: %d
 	// ========== BY NAMESPACE VIEW ==========
 	nsView := tview.NewFlex().SetDirection(tview.FlexRow)
 
-	// Calculate costs by namespace
 	type nsCostInfo struct {
 		count int
 		cost  float64
@@ -184,7 +179,6 @@ Pods: %d | Nodes: %d
 		nsInfo[pod.Namespace] = info
 	}
 
-	// Create pages for each namespace
 	nsPages := tview.NewPages()
 	currentNS := 0
 
@@ -192,13 +186,11 @@ Pods: %d | Nodes: %d
 		nsPods := nsInfo[ns]
 		nsPage := tview.NewFlex().SetDirection(tview.FlexRow)
 
-		// NS header - k9s style
 		nsPage.AddItem(tview.NewTextView().
-			SetText(fmt.Sprintf(" Namespace:%s | Pods:%d | Monthly:$%.2f ", ns, nsPods.count, nsPods.cost)).
+			SetText(fmt.Sprintf("Namespace: %s | Pods: %d | Monthly Cost: $%.2f", ns, nsPods.count, nsPods.cost)).
 			SetDynamicColors(true), 1, 0, false)
 
-		// Pods in this namespace
-		podTable := tview.NewTable().SetBorders(false)
+		podTable := tview.NewTable().SetBorders(true)
 		headers := []string{"NAME", "CPU", "MEM", "COST"}
 		for j, h := range headers {
 			c := tview.NewTableCell(h).SetAlign(tview.AlignCenter).SetTextColor(cyan)
@@ -214,14 +206,12 @@ Pods: %d | Nodes: %d
 			row++
 		}
 
-		// Total
 		podTable.SetCell(row, 0, tview.NewTableCell("TOTAL").SetTextColor(green).SetAlign(tview.AlignLeft))
 		podTable.SetCell(row, 1, tview.NewTableCell("").SetAlign(tview.AlignRight))
 		podTable.SetCell(row, 2, tview.NewTableCell("").SetAlign(tview.AlignRight))
 		podTable.SetCell(row, 3, tview.NewTableCell(fmt.Sprintf("$%.2f", nsPods.cost)).SetTextColor(green).SetAlign(tview.AlignRight))
 
 		nsPage.AddItem(podTable, 0, 1, false)
-
 		nsPages.AddPage(fmt.Sprintf("%d", i), nsPage, true, false)
 	}
 
@@ -241,7 +231,7 @@ Pods: %d | Nodes: %d
 
 	// ========== MAIN LAYOUT ==========
 	mainLayout := tview.NewFlex().SetDirection(tview.FlexRow)
-	mainLayout.AddItem(headerBar, 1, 0, false)
+	mainLayout.AddItem(headerBar, 2, 0, false)
 	mainLayout.AddItem(pages, 0, 1, true)
 	mainLayout.AddItem(shortcutBar, 1, 0, false)
 
@@ -262,7 +252,6 @@ Pods: %d | Nodes: %d
 			pages.SwitchToPage(pageNamespaces)
 		}
 
-		// Number keys
 		r := string(event.Rune())
 		switch r {
 		case "1":
@@ -275,7 +264,6 @@ Pods: %d | Nodes: %d
 			pages.SwitchToPage(pageNamespaces)
 		}
 
-		// Arrow keys for namespace cycling
 		if currentPage == pageNamespaces {
 			switch event.Key() {
 			case tcell.KeyRight, tcell.KeyDown:

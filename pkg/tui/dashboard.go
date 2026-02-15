@@ -80,14 +80,31 @@ func ShowDashboard(data ReportData) {
 	// ========== OVERVIEW VIEW ==========
 	overview := tview.NewFlex().SetDirection(tview.FlexRow)
 
-	// k9s style: show pods(all) at top
-	overviewText := fmt.Sprintf("pods(all)[%d]\n\n", len(data.PodCosts))
+	// Show analyze info on overview
+	overviewText := fmt.Sprintf(`Monthly Cost: $%.2f
+  Hardware (amortized):  $%.2f
+  Electricity:           $%.2f
+
+Pods: %d | Nodes: %d
+`, data.TotalCost, data.HardwareCost, data.ElecCost, len(data.PodCosts), len(data.Nodes))
 
 	overviewView := tview.NewTextView().SetText(overviewText).SetDynamicColors(true)
 	overviewView.SetBorder(false)
-	overview.AddItem(overviewView, 1, 0, false)
+	overview.AddItem(overviewView, 0, 2, false)
 
-	// Pods table on overview
+	// Add cost summary table
+	costTable := tview.NewTable().SetBorders(false)
+	costTable.SetCell(0, 0, tview.NewTableCell("Cost Type").SetTextColor(cyan))
+	costTable.SetCell(0, 1, tview.NewTableCell("Monthly").SetTextColor(cyan))
+	costTable.SetCell(1, 0, tview.NewTableCell("Hardware").SetAlign(tview.AlignLeft))
+	costTable.SetCell(1, 1, tview.NewTableCell(fmt.Sprintf("$%.2f", data.HardwareCost)).SetAlign(tview.AlignRight))
+	costTable.SetCell(2, 0, tview.NewTableCell("Electricity").SetAlign(tview.AlignLeft))
+	costTable.SetCell(2, 1, tview.NewTableCell(fmt.Sprintf("$%.2f", data.ElecCost)).SetAlign(tview.AlignRight))
+	costTable.SetCell(3, 0, tview.NewTableCell("TOTAL").SetTextColor(green).SetAlign(tview.AlignLeft))
+	costTable.SetCell(3, 1, tview.NewTableCell(fmt.Sprintf("$%.2f", data.TotalCost)).SetTextColor(green).SetAlign(tview.AlignRight))
+	overview.AddItem(costTable, 0, 1, false)
+
+	// ========== PODS VIEW ==========
 	podTable := tview.NewTable().SetBorders(false)
 	podHeaders := []string{"NAMESPACE", "NAME", "CPU", "MEM", "COST"}
 	for i, h := range podHeaders {
@@ -114,9 +131,7 @@ func ShowDashboard(data ReportData) {
 	podTable.SetCell(row, 3, tview.NewTableCell("").SetAlign(tview.AlignRight))
 	podTable.SetCell(row, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", totalCost)).SetTextColor(green).SetAlign(tview.AlignRight))
 
-	overview.AddItem(podTable, 0, 1, false)
-
-	// ========== PODS VIEW (same as overview) ==========
+	// ========== PODS VIEW ==========
 	podsView := tview.NewFlex().SetDirection(tview.FlexRow)
 	podsView.AddItem(podTable, 0, 1, false)
 

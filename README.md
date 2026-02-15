@@ -41,10 +41,10 @@ This enables a `pre-commit` hook that:
 
 Grab binaries from the GitHub Releases page:
 
-- Latest release page: https://github.com/newman-bot/kfin/releases/latest
-- Linux amd64: https://github.com/newman-bot/kfin/releases/latest/download/kfin_linux_amd64.tar.gz
-- Linux arm64: https://github.com/newman-bot/kfin/releases/latest/download/kfin_linux_arm64.tar.gz
-- macOS arm64: https://github.com/newman-bot/kfin/releases/latest/download/kfin_darwin_arm64.tar.gz
+- Latest release page: https://github.com/sharksrus/kfin/releases/latest
+- Linux amd64: https://github.com/sharksrus/kfin/releases/latest/download/kfin_linux_amd64.tar.gz
+- Linux arm64: https://github.com/sharksrus/kfin/releases/latest/download/kfin_linux_arm64.tar.gz
+- macOS arm64: https://github.com/sharksrus/kfin/releases/latest/download/kfin_darwin_arm64.tar.gz
 
 Note: binaries are published as **Release assets** (not GitHub Packages). If a direct link returns 404, check the release page first to confirm assets were attached.
 

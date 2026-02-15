@@ -1,8 +1,9 @@
 name: Homebrew Tap Update
 
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       version:
@@ -16,6 +17,11 @@ permissions:
 jobs:
   update-homebrew-tap:
     name: Update Homebrew Tap Formula
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'release')
     runs-on: ubuntu-latest
     env:
       TAP_REPO: sharksrus/homebrew-kfin
@@ -39,9 +45,7 @@ jobs:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
         run: |
           set -euo pipefail
-          if [[ "${GITHUB_EVENT_NAME}" == "release" ]]; then
-            version="${GITHUB_REF_NAME}"
-          elif [[ -n "${{ inputs.version }}" ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && -n "${{ inputs.version }}" ]]; then
             version="${{ inputs.version }}"
           else
             version="$(gh release view --repo sharksrus/kfin --json tagName -q .tagName)"

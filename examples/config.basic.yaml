@@ -1,0 +1,17 @@
+# Baseline local/hybrid config
+pricing:
+  hardware_monthly_per_gb: 0.26
+  electricity_rate: 0.113640
+  watts_per_node: 15
+
+  eks:
+    control_plane_per_hour: 0.10
+
+  cloud:
+    cpu_per_hour: 0.025
+    mem_per_gb_hour: 0.006
+
+stats:
+  base_url: "http://localhost:9090"
+  query_timeout_seconds: 15
+  default_lookback_hours: 24

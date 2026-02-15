@@ -55,4 +55,3 @@ func TestBuildPricingProvider_InvalidSource(t *testing.T) {
 		t.Fatalf("expected error for invalid source")
 	}
 }
-

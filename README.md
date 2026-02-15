@@ -10,7 +10,7 @@
 
 ## Preview
 
-![kfin TUI dashboard](docs/screenshots/tui-rates-mcp.png)
+![kfin TUI dashboard](examples/screenshots/tui-rates-mcp.png)
 
 ## Prerequisites
 
@@ -43,14 +43,32 @@ This enables a `pre-commit` hook that:
 - runs `gofmt -w` on staged `.go` files
 - re-stages those formatted files before commit
 
-## Download Prebuilt Binaries
+## Install
 
-Grab binaries from the GitHub Releases page:
+Homebrew (recommended):
+
+```bash
+brew tap sharksrus/homebrew-kfin
+brew install kfin
+```
+
+Manual download from GitHub Releases (latest):
 
 - Latest release page: https://github.com/sharksrus/kfin/releases/latest
 - Linux amd64: https://github.com/sharksrus/kfin/releases/latest/download/kfin_linux_amd64.tar.gz
 - Linux arm64: https://github.com/sharksrus/kfin/releases/latest/download/kfin_linux_arm64.tar.gz
 - macOS arm64: https://github.com/sharksrus/kfin/releases/latest/download/kfin_darwin_arm64.tar.gz
+
+macOS short-term note (until Apple Developer signing/notarization is in place):
+
+```bash
+tar -xzf kfin_darwin_arm64.tar.gz
+chmod +x ./kfin
+xattr -dr com.apple.quarantine ./kfin
+./kfin --version
+```
+
+If macOS still blocks execution, allow it once in `System Settings` -> `Privacy & Security` and run again.
 
 Note: binaries are published as **Release assets** (not GitHub Packages). If a direct link returns 404, check the release page first to confirm assets were attached. For private repos, use authenticated download via `gh` or a GitHub token.
 
@@ -118,14 +136,7 @@ Automated option:
   - `HOMEBREW_APP_PRIVATE_KEY`
 - GitHub App installation must include:
   - `sharksrus/homebrew-kfin` with `Contents: Read and write`, `Pull requests: Read and write`
-  - `sharksrus/kfin` with read access if this repo is private
-
-### Users: install via tap
-
-```bash
-brew tap sharksrus/homebrew-kfin
-brew install kfin
-```
+- `sharksrus/kfin` with read access if this repo is private
 
 ## Usage
 
@@ -199,11 +210,11 @@ Export PDF report:
 
 ## Screenshots
 
-- `tui` showing active pricing source/rates: ![TUI rates MCP](docs/screenshots/tui-rates-mcp.png)
-- `history` with config pricing: ![History config pricing](docs/screenshots/history-config-pricing.png)
-- `history` with MCP pricing: ![History MCP pricing](docs/screenshots/history-mcp-pricing.png)
-- `analyze` summary with MCP-backed rates: ![Analyze summary MCP](docs/screenshots/analyze-summary-mcp.png)
-- MCP wrapper output (JSON rates): ![MCP wrapper output](docs/screenshots/mcp-wrapper-json.png)
+- `tui` showing active pricing source/rates: ![TUI rates MCP](examples/screenshots/tui-rates-mcp.png)
+- `history` with config pricing: ![History config pricing](examples/screenshots/history-config-pricing.png)
+- `history` with MCP pricing: ![History MCP pricing](examples/screenshots/history-mcp-pricing.png)
+- `analyze` summary with MCP-backed rates: ![Analyze summary MCP](examples/screenshots/analyze-summary-mcp.png)
+- MCP wrapper output (JSON rates): ![MCP wrapper output](examples/screenshots/mcp-wrapper-json.png)
 
 ## Shell Completion
 
@@ -232,6 +243,11 @@ mkdir -p "${HOME}/.zfunc"
 ## Configuration
 
 `kfin` reads `config.yaml` from the current working directory.
+Use one of these templates and copy it to `config.yaml`:
+
+- `examples/config.basic.yaml` for baseline local/hybrid setup
+- `examples/config.eks.yaml` for EKS-focused setup (instance-type cost mapping + control plane)
+- `examples/config.mcp.yaml` for MCP-backed usage pricing
 
 For historical usage queries, configure:
 

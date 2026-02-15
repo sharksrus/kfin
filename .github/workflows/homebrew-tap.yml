@@ -76,7 +76,7 @@ jobs:
           cp Formula/kfin.rb "${tap_dir}/Formula/kfin.rb"
 
           cd "${tap_dir}"
-          if git diff --quiet -- Formula/kfin.rb; then
+          if [[ -z "$(git status --porcelain -- Formula/kfin.rb)" ]]; then
             echo "No Homebrew formula changes detected; skipping PR."
             exit 0
           fi

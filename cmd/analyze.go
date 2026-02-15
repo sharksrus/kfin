@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
+	"time"
 
 	"github.com/newman-bot/kfin/pkg/config"
 	"github.com/newman-bot/kfin/pkg/pdf"
+	"github.com/newman-bot/kfin/pkg/pricing"
 	"github.com/newman-bot/kfin/pkg/tui"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -16,7 +19,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+const nodeInstanceTypeLabel = "node.kubernetes.io/instance-type"
+
 var cfg *config.Config
+var activeUsageRates pricing.UsageRates
+var activeUsageRatesSource = "config"
 
 func init() {
 	// Try to load config, fall back to defaults
@@ -24,6 +31,10 @@ func init() {
 	cfg, err = config.Load("config.yaml")
 	if err != nil {
 		cfg = config.DefaultConfig()
+	}
+	activeUsageRates = pricing.UsageRates{
+		CPUPerHour:   cfg.Pricing.Cloud.CPUPerHour,
+		MemPerGBHour: cfg.Pricing.Cloud.MemPerGBHour,
 	}
 }
 
@@ -69,10 +80,11 @@ func analyzeCluster() {
 		log.Fatalf("Failed to list nodes: %v", err)
 	}
 
+	resolveUsageRates()
+
 	// Calculate total hardware costs
-	totalMemGB := calculateTotalMemoryGB(nodes.Items)
-	hardwareCostMonthly := totalMemGB * cfg.Pricing.HardwareMonthlyPerGB
-	electricityCostMonthly := float64(len(nodes.Items)) * cfg.Pricing.WattsPerNode / 1000.0 * 730 * cfg.Pricing.ElectricityRate // 730 hours/month
+	hardwareCostMonthly, electricityCostMonthly, controlPlaneMonthly := calculateClusterCosts(nodes.Items)
+	totalMonthly := hardwareCostMonthly + electricityCostMonthly + controlPlaneMonthly
 
 	fmt.Printf("Found %d pods across %d nodes\n\n", len(pods.Items), len(nodes.Items))
 
@@ -80,7 +92,10 @@ func analyzeCluster() {
 	fmt.Printf("=== Monthly Cost Summary ===\n")
 	fmt.Printf("Hardware (amortized): $%.2f\n", hardwareCostMonthly)
 	fmt.Printf("Electricity:         $%.2f\n", electricityCostMonthly)
-	fmt.Printf("Total:               $%.2f\n\n", hardwareCostMonthly+electricityCostMonthly)
+	fmt.Printf("EKS control plane:   $%.2f\n", controlPlaneMonthly)
+	fmt.Printf("Total:               $%.2f\n", totalMonthly)
+	fmt.Printf("Pod pricing source:  %s (cpu_per_hour=%.6f, mem_per_gb_hour=%.6f)\n\n",
+		activeUsageRatesSource, activeUsageRates.CPUPerHour, activeUsageRates.MemPerGBHour)
 
 	fmt.Printf("%-40s %-15s %-12s %-12s %-12s\n", "POD", "NAMESPACE", "CPU REQ", "MEM REQ", "MONTHLY $")
 	fmt.Println("================================================================================")
@@ -119,31 +134,38 @@ func analyzeCluster() {
 	// Per-node breakdown
 	fmt.Printf("\n=== Node Hardware Costs (monthly) ===\n")
 	for _, node := range nodes.Items {
-		memGB := float64(node.Status.Capacity.Memory().Value()) / (1024 * 1024 * 1024)
-		nodeCost := memGB * cfg.Pricing.HardwareMonthlyPerGB
+		nodeCost, instanceType, usedInstanceOverride := calculateNodeHardwareCost(node)
 		elecCost := cfg.Pricing.WattsPerNode / 1000.0 * 730 * cfg.Pricing.ElectricityRate
+		if usedInstanceOverride {
+			fmt.Printf("%s (%s): $%.2f (hardware) + $%.2f (electricity) = $%.2f/month\n",
+				node.Name, instanceType, nodeCost, elecCost, nodeCost+elecCost)
+			continue
+		}
 		fmt.Printf("%s: $%.2f (hardware) + $%.2f (electricity) = $%.2f/month\n",
 			node.Name, nodeCost, elecCost, nodeCost+elecCost)
 	}
 }
 
-func calculateTotalMemoryGB(nodes []corev1.Node) float64 {
-	var total int64
-	for _, node := range nodes {
-		mem := node.Status.Capacity.Memory().Value()
-		total += mem
+func calculateNodeHardwareCost(node corev1.Node) (float64, string, bool) {
+	instanceType := node.Labels[nodeInstanceTypeLabel]
+	if instanceType != "" {
+		if monthly, ok := cfg.Pricing.InstanceMonthlyByType[instanceType]; ok && monthly > 0 {
+			return monthly, instanceType, true
+		}
 	}
-	return float64(total) / (1024 * 1024 * 1024)
+
+	memGB := float64(node.Status.Capacity.Memory().Value()) / (1024 * 1024 * 1024)
+	return memGB * cfg.Pricing.HardwareMonthlyPerGB, instanceType, false
 }
 
 func calculateContainerCost(cpu *resource.Quantity, mem *resource.Quantity) float64 {
-	// Cost based on hardware allocation (memory-based)
+	cpuCores := float64(cpu.MilliValue()) / 1000.0
 	memGB := float64(mem.Value()) / (1024 * 1024 * 1024)
 
-	// Hardware cost (allocated portion)
-	hardwareCost := memGB * cfg.Pricing.HardwareMonthlyPerGB
+	monthlyCPUCost := cpuCores * 730 * activeUsageRates.CPUPerHour
+	monthlyMemCost := memGB * 730 * activeUsageRates.MemPerGBHour
 
-	return hardwareCost
+	return monthlyCPUCost + monthlyMemCost
 }
 
 func truncate(s string, maxLen int) string {
@@ -197,7 +219,7 @@ func collectNodeInfo(nodes []corev1.Node) []tui.NodeInfo {
 	var result []tui.NodeInfo
 	for _, node := range nodes {
 		memGB := float64(node.Status.Capacity.Memory().Value()) / (1024 * 1024 * 1024)
-		hardwareCost := memGB * cfg.Pricing.HardwareMonthlyPerGB
+		hardwareCost, _, _ := calculateNodeHardwareCost(node)
 		elecCost := cfg.Pricing.WattsPerNode / 1000.0 * 730 * cfg.Pricing.ElectricityRate
 
 		result = append(result, tui.NodeInfo{
@@ -215,7 +237,7 @@ func collectNodeInfoForPdf(nodes []corev1.Node) []pdf.NodeInfo {
 	var result []pdf.NodeInfo
 	for _, node := range nodes {
 		memGB := float64(node.Status.Capacity.Memory().Value()) / (1024 * 1024 * 1024)
-		hardwareCost := memGB * cfg.Pricing.HardwareMonthlyPerGB
+		hardwareCost, _, _ := calculateNodeHardwareCost(node)
 		elecCost := cfg.Pricing.WattsPerNode / 1000.0 * 730 * cfg.Pricing.ElectricityRate
 
 		result = append(result, pdf.NodeInfo{
@@ -229,15 +251,58 @@ func collectNodeInfoForPdf(nodes []corev1.Node) []pdf.NodeInfo {
 	return result
 }
 
-func calculateClusterCosts(nodes []corev1.Node) (float64, float64) {
-	var totalMemGB float64
+func calculateClusterCosts(nodes []corev1.Node) (float64, float64, float64) {
+	var hardwareCost float64
 	for _, node := range nodes {
-		memGB := float64(node.Status.Capacity.Memory().Value()) / (1024 * 1024 * 1024)
-		totalMemGB += memGB
+		nodeHardware, _, _ := calculateNodeHardwareCost(node)
+		hardwareCost += nodeHardware
 	}
 
-	hardwareCost := totalMemGB * cfg.Pricing.HardwareMonthlyPerGB
 	elecCost := float64(len(nodes)) * cfg.Pricing.WattsPerNode / 1000.0 * 730 * cfg.Pricing.ElectricityRate
+	controlPlaneCost := 0.0
+	if isEKSCluster(nodes) {
+		controlPlaneCost = 730 * cfg.Pricing.EKS.ControlPlanePerHour
+	}
 
-	return hardwareCost, elecCost
+	return hardwareCost, elecCost, controlPlaneCost
+}
+
+func isEKSCluster(nodes []corev1.Node) bool {
+	for _, node := range nodes {
+		for k := range node.Labels {
+			if strings.HasPrefix(k, "eks.amazonaws.com/") {
+				return true
+			}
+		}
+		if strings.HasPrefix(node.Spec.ProviderID, "aws://") {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveUsageRates() {
+	base := pricing.NewStaticProvider(cfg.Pricing.Cloud.CPUPerHour, cfg.Pricing.Cloud.MemPerGBHour)
+	activeUsageRatesSource = base.Source()
+
+	cmd := strings.TrimSpace(cfg.Pricing.MCP.Command)
+	if cmd == "" {
+		rates, _ := base.UsageRates(context.Background())
+		activeUsageRates = rates
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rates, err := pricing.NewMCPProvider(cmd, cfg.Pricing.MCP.Args).UsageRates(ctx)
+	if err != nil {
+		log.Printf("warning: mcp pricing failed, falling back to config rates: %v", err)
+		rates, _ = base.UsageRates(context.Background())
+		activeUsageRatesSource = base.Source()
+		activeUsageRates = rates
+		return
+	}
+	activeUsageRatesSource = "mcp"
+	activeUsageRates = rates
 }

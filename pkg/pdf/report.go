@@ -9,14 +9,15 @@ import (
 )
 
 type ReportData struct {
-	PodCosts     []PodCost
-	TotalCost    float64
-	HardwareCost float64
-	ElecCost     float64
-	Nodes        []NodeInfo
-	GeneratedAt  time.Time
-	ContextName  string
-	ClusterName  string
+	PodCosts         []PodCost
+	TotalCost        float64
+	HardwareCost     float64
+	ElecCost         float64
+	ControlPlaneCost float64
+	Nodes            []NodeInfo
+	GeneratedAt      time.Time
+	ContextName      string
+	ClusterName      string
 }
 
 type PodCost struct {
@@ -172,18 +173,20 @@ func drawSummaryCards(pdf *gofpdf.Fpdf, data ReportData, nonZeroPods int, namesp
 	pdf.SetXY(x+4, y+4)
 	pdf.SetTextColor(52, 58, 64)
 	pdf.SetFont("Arial", "", 9)
-	pdf.CellFormat(52, 5, "TOTAL MONTHLY", "", 0, "L", false, 0, "")
-	pdf.CellFormat(44, 5, "HARDWARE", "", 0, "L", false, 0, "")
-	pdf.CellFormat(44, 5, "ELECTRICITY", "", 0, "L", false, 0, "")
-	pdf.CellFormat(42, 5, "PODS / NAMESPACES", "", 0, "L", false, 0, "")
+	pdf.CellFormat(36, 5, "TOTAL MONTHLY", "", 0, "L", false, 0, "")
+	pdf.CellFormat(34, 5, "HARDWARE", "", 0, "L", false, 0, "")
+	pdf.CellFormat(34, 5, "ELECTRICITY", "", 0, "L", false, 0, "")
+	pdf.CellFormat(34, 5, "CONTROL PLANE", "", 0, "L", false, 0, "")
+	pdf.CellFormat(34, 5, "PODS / NS", "", 0, "L", false, 0, "")
 
 	pdf.SetXY(x+4, y+10)
 	pdf.SetTextColor(16, 24, 32)
 	pdf.SetFont("Arial", "B", 12)
-	pdf.CellFormat(52, 7, money(data.TotalCost), "", 0, "L", false, 0, "")
-	pdf.CellFormat(44, 7, money(data.HardwareCost), "", 0, "L", false, 0, "")
-	pdf.CellFormat(44, 7, money(data.ElecCost), "", 0, "L", false, 0, "")
-	pdf.CellFormat(42, 7, fmt.Sprintf("%d / %d", nonZeroPods, namespaces), "", 0, "L", false, 0, "")
+	pdf.CellFormat(36, 7, money(data.TotalCost), "", 0, "L", false, 0, "")
+	pdf.CellFormat(34, 7, money(data.HardwareCost), "", 0, "L", false, 0, "")
+	pdf.CellFormat(34, 7, money(data.ElecCost), "", 0, "L", false, 0, "")
+	pdf.CellFormat(34, 7, money(data.ControlPlaneCost), "", 0, "L", false, 0, "")
+	pdf.CellFormat(34, 7, fmt.Sprintf("%d / %d", nonZeroPods, namespaces), "", 0, "L", false, 0, "")
 
 	pdf.SetY(y + h + 4)
 }

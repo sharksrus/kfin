@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/newman-bot/kfin/pkg/pricing"
 	"github.com/newman-bot/kfin/pkg/stats"
 	"github.com/spf13/cobra"
 )
@@ -19,23 +20,29 @@ func HistoryCmd() *cobra.Command {
 	lookbackHours := cfg.Stats.DefaultLookbackHours
 	step := "5m"
 	debug := false
+	pricingSource := "config"
+	mcpCommand := strings.TrimSpace(cfg.Pricing.MCP.Command)
+	mcpArgs := append([]string{}, cfg.Pricing.MCP.Args...)
 
 	cmd := &cobra.Command{
 		Use:   "history",
 		Short: "Analyze historical cluster usage from Prometheus-compatible stats API",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runHistory(lookbackHours, step, debug)
+			return runHistory(lookbackHours, step, debug, pricingSource, mcpCommand, mcpArgs)
 		},
 	}
 
 	cmd.Flags().IntVar(&lookbackHours, "hours", lookbackHours, "Lookback window in hours")
 	cmd.Flags().StringVar(&step, "step", step, "Query step duration (for example: 1m, 5m, 15m)")
 	cmd.Flags().BoolVar(&debug, "debug", debug, "Print query URLs and returned series/point details")
+	cmd.Flags().StringVar(&pricingSource, "pricing-source", pricingSource, "Pricing source: config or mcp")
+	cmd.Flags().StringVar(&mcpCommand, "pricing-mcp-command", mcpCommand, "Command used to fetch pricing JSON from MCP wrapper")
+	cmd.Flags().StringArrayVar(&mcpArgs, "pricing-mcp-arg", mcpArgs, "Repeatable arg passed to --pricing-mcp-command")
 
 	return cmd
 }
 
-func runHistory(lookbackHours int, step string, debug bool) error {
+func runHistory(lookbackHours int, step string, debug bool, pricingSource, mcpCommand string, mcpArgs []string) error {
 	baseURL := strings.TrimSpace(cfg.Stats.BaseURL)
 	if baseURL == "" {
 		return fmt.Errorf("stats.base_url is empty; set it in config.yaml (example: http://stats.kramerica.ai)")
@@ -54,6 +61,10 @@ func runHistory(lookbackHours int, step string, debug bool) error {
 
 	timeout := time.Duration(cfg.Stats.QueryTimeoutSeconds) * time.Second
 	client, err := stats.NewClient(baseURL, timeout)
+	if err != nil {
+		return err
+	}
+	pricingProvider, err := buildPricingProvider(pricingSource, mcpCommand, mcpArgs)
 	if err != nil {
 		return err
 	}
@@ -98,8 +109,12 @@ func runHistory(lookbackHours int, step string, debug bool) error {
 	}
 
 	avgMemGB := avgMemBytes / (1024 * 1024 * 1024)
-	monthlyCPUCost := avgCPU * 730 * cfg.Pricing.Cloud.CPUPerHour
-	monthlyMemCost := avgMemGB * 730 * cfg.Pricing.Cloud.MemPerGBHour
+	usageRates, err := pricingProvider.UsageRates(ctx)
+	if err != nil {
+		return fmt.Errorf("resolve pricing rates: %w", err)
+	}
+	monthlyCPUCost := avgCPU * 730 * usageRates.CPUPerHour
+	monthlyMemCost := avgMemGB * 730 * usageRates.MemPerGBHour
 	cpuPointStats := stats.GetSeriesPointStats(cpuResp)
 	memPointStats := stats.GetSeriesPointStats(memResp)
 
@@ -119,9 +134,28 @@ func runHistory(lookbackHours int, step string, debug bool) error {
 	}
 
 	fmt.Printf("Estimated monthly usage-based cost (cloud pricing)\n")
+	if debug {
+		fmt.Printf("Pricing source:    %s (cpu_per_hour=%.6f, mem_per_gb_hour=%.6f)\n",
+			pricingProvider.Source(), usageRates.CPUPerHour, usageRates.MemPerGBHour)
+	}
 	fmt.Printf("CPU:              $%.2f\n", monthlyCPUCost)
 	fmt.Printf("Memory:           $%.2f\n", monthlyMemCost)
 	fmt.Printf("Total:            $%.2f\n", monthlyCPUCost+monthlyMemCost)
 
 	return nil
+}
+
+func buildPricingProvider(source, mcpCommand string, mcpArgs []string) (pricing.Provider, error) {
+	switch strings.ToLower(strings.TrimSpace(source)) {
+	case "", "config":
+		return pricing.NewStaticProvider(cfg.Pricing.Cloud.CPUPerHour, cfg.Pricing.Cloud.MemPerGBHour), nil
+	case "mcp":
+		cmd := strings.TrimSpace(mcpCommand)
+		if cmd == "" {
+			return nil, fmt.Errorf("pricing source mcp requires --pricing-mcp-command or pricing.mcp.command in config.yaml")
+		}
+		return pricing.NewMCPProvider(cmd, mcpArgs), nil
+	default:
+		return nil, fmt.Errorf("invalid --pricing-source %q (expected: config or mcp)", source)
+	}
 }

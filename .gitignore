@@ -9,3 +9,4 @@ bin/
 *.log
 kfin
 TOMORROW.md
+eks/**

@@ -10,7 +10,8 @@ permissions:
 jobs:
   lint-build:
     name: Lint and Build
-    runs-on: ubuntu-latest
+    runs-on:
+      group: moar-linux
     timeout-minutes: 15
 
     steps:
@@ -45,7 +46,8 @@ jobs:
 
   scan:
     name: Trivy Filesystem Scan
-    runs-on: ubuntu-latest
+    runs-on:
+      group: moar-linux
     timeout-minutes: 20
     permissions:
       contents: read

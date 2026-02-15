@@ -53,16 +53,9 @@ func ShowDashboard(data ReportData) {
 	headerBar := tview.NewFlex()
 	headerBar.SetDirection(tview.FlexColumn).SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
 
-	// kFin ASCII logo (like k9s)
-	kfinLogo := `  _ __ ___ | |/ _|| || |
- | '_ \ / _ \ | |_| |_| || |_
- | | | |  __/| |  _| ||  _|
- |_| |_|\___||_| |_| |_||_|
-`
-
-	// Top line: logo on left, context in middle, logo on right
-	headerTop := fmt.Sprintf("%s  Context:cluster  Nodes:%d  Monthly:$%.2f  CPU:1%%  MEM:22%%", 
-		kfinLogo, len(data.Nodes), data.TotalCost)
+	// Top line: logo and context
+	headerTop := fmt.Sprintf("kFin | Context:cluster | Nodes:%d | Monthly:$%.2f | CPU:1%% | MEM:22%%", 
+		len(data.Nodes), data.TotalCost)
 
 	// Second line: namespace shortcuts (like k9s)
 	var nsShortcuts string
@@ -79,7 +72,7 @@ func ShowDashboard(data ReportData) {
 	headerMidView := tview.NewTextView().SetText(headerMid).SetDynamicColors(true)
 	headerMidView.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
 
-	headerBar.AddItem(headerTopView, 0, 1, false)
+	headerBar.AddItem(headerTopView, 1, 0, false)
 	headerBar.AddItem(headerMidView, 1, 0, false)
 
 	// ========== MAIN CONTENT AREA ==========

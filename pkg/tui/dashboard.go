@@ -203,8 +203,11 @@ Pods: %d | Nodes: %d | Namespaces: %v
 		nsList = append(nsList, fmt.Sprintf("%d:%s", i+1, ns))
 	}
 
+	// Track current namespace index for arrow key navigation
+	currentNS := 0
+
 	nsView.AddItem(tview.NewTextView().
-		SetText(fmt.Sprintf("\n Namespaces (%d): %v\n\n Press number (1-%d) to view pods in namespace\n",
+		SetText(fmt.Sprintf("\n Namespaces (%d): %v\n\n Press number (1-%d) or arrow keys to cycle through namespaces\n",
 			len(namespaces), nsList, len(namespaces))).
 		SetDynamicColors(true), 2, 0, false)
 	nsView.AddItem(nsPages, 0, 1, false)
@@ -254,8 +257,18 @@ Pods: %d | Nodes: %d | Namespaces: %v
 			// In namespace view, number keys switch between namespaces
 			for i := range namespaces {
 				if r == fmt.Sprintf("%d", i+1) {
+					currentNS = i
 					nsPages.SwitchToPage(fmt.Sprintf("%d", i))
 				}
+			}
+			// Arrow key navigation
+			switch event.Key() {
+			case tcell.KeyRight, tcell.KeyDown:
+				currentNS = (currentNS + 1) % len(namespaces)
+				nsPages.SwitchToPage(fmt.Sprintf("%d", currentNS))
+			case tcell.KeyLeft, tcell.KeyUp:
+				currentNS = (currentNS - 1 + len(namespaces)) % len(namespaces)
+				nsPages.SwitchToPage(fmt.Sprintf("%d", currentNS))
 			}
 		}
 		return event

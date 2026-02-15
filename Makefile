@@ -1,19 +1,19 @@
 .PHONY: build run test clean
 
 build:
-	go build -o pod-cost-analyzer
+	go build -o kfin
 
 run: build
-	./pod-cost-analyzer status
+	./kfin status
 
 analyze: build
-	./pod-cost-analyzer analyze
+	./kfin analyze
 
 test:
 	go test ./...
 
 clean:
-	rm -f pod-cost-analyzer
+	rm -f kfin
 
 deps:
 	go mod download

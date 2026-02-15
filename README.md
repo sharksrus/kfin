@@ -15,19 +15,19 @@ Track resource waste and estimate costs for pods in your K3s/Kubernetes clusters
 ### Build
 
 ```bash
-go build -o pod-cost-analyzer
+go build -o kfin
 ```
 
 ### Usage
 
 Check cluster status:
 ```bash
-./pod-cost-analyzer status
+./kfin status
 ```
 
 Analyze pod costs:
 ```bash
-./pod-cost-analyzer analyze
+./kfin analyze
 ```
 
 ## Architecture
@@ -65,7 +65,7 @@ Assumes kubeconfig at `~/.kube/config`. Set `KUBECONFIG` env var if different.
 
 ```bash
 export KUBECONFIG=/path/to/kubeconfig
-./pod-cost-analyzer status
+./kfin status
 ```
 
 ## Next Steps

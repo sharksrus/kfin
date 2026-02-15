@@ -55,5 +55,5 @@ func showStatus() {
 	fmt.Printf("===============\n")
 	fmt.Printf("Nodes: %d\n", len(nodes.Items))
 	fmt.Printf("Total Pods: %d\n", len(pods.Items))
-	fmt.Printf("\nReady for cost analysis. Run 'pod-cost-analyzer analyze' to get started.\n")
+	fmt.Printf("\nReady for cost analysis. Run 'kfin analyze' to get started.\n")
 }

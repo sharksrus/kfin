@@ -5,11 +5,11 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/newman-bot/pod-cost-analyzer/cmd"
+	"github.com/newman-bot/kfin/cmd"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "pod-cost-analyzer",
+	Use:   "kfin",
 	Short: "Analyze pod costs in K3s/Kubernetes clusters",
 	Long: `Pod Cost Analyzer tracks resource usage and estimates costs for pods in your K3s cluster.
 
@@ -19,6 +19,8 @@ Identifies waste, suggests rightsizing, and helps optimize your infrastructure s
 func init() {
 	rootCmd.AddCommand(cmd.AnalyzeCmd())
 	rootCmd.AddCommand(cmd.StatusCmd())
+	rootCmd.AddCommand(cmd.TuiCmd())
+	rootCmd.AddCommand(cmd.PdfCmd())
 }
 
 func main() {

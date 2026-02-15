@@ -44,6 +44,7 @@ func runTui() {
 	if err != nil {
 		log.Fatalf("Failed to connect to cluster: %v", err)
 	}
+	resolveUsageRates()
 	contextName, clusterName := getKubeContextDetails()
 
 	ctx := context.Background()
@@ -61,18 +62,20 @@ func runTui() {
 	// Collect data
 	podCosts := collectPodCosts(pods.Items)
 	nodeInfo := collectNodeInfo(nodes.Items)
-	hardwareCost, elecCost := calculateClusterCosts(nodes.Items)
+	hardwareCost, elecCost, controlPlaneCost := calculateClusterCosts(nodes.Items)
 	statsFreshness := collectStatsFreshness()
 
 	data := tui.ReportData{
-		PodCosts:       podCosts,
-		HardwareCost:   hardwareCost,
-		ElecCost:       elecCost,
-		TotalCost:      hardwareCost + elecCost,
-		Nodes:          nodeInfo,
-		ContextName:    contextName,
-		ClusterName:    clusterName,
-		StatsFreshness: statsFreshness,
+		PodCosts:         podCosts,
+		HardwareCost:     hardwareCost,
+		ElecCost:         elecCost,
+		ControlPlaneCost: controlPlaneCost,
+		TotalCost:        hardwareCost + elecCost + controlPlaneCost,
+		Nodes:            nodeInfo,
+		ContextName:      contextName,
+		ClusterName:      clusterName,
+		PricingSource:    activeUsageRatesSource,
+		StatsFreshness:   statsFreshness,
 	}
 
 	tui.ShowDashboard(data)
@@ -142,6 +145,7 @@ func runPdf(output string) {
 	if err != nil {
 		log.Fatalf("Failed to connect to cluster: %v", err)
 	}
+	resolveUsageRates()
 	contextName, clusterName := getKubeContextDetails()
 
 	ctx := context.Background()
@@ -159,17 +163,18 @@ func runPdf(output string) {
 	// Collect data
 	podCosts := collectPodCostsForPdf(pods.Items)
 	nodeInfo := collectNodeInfoForPdf(nodes.Items)
-	hardwareCost, elecCost := calculateClusterCosts(nodes.Items)
+	hardwareCost, elecCost, controlPlaneCost := calculateClusterCosts(nodes.Items)
 
 	data := pdf.ReportData{
-		PodCosts:     podCosts,
-		HardwareCost: hardwareCost,
-		ElecCost:     elecCost,
-		TotalCost:    hardwareCost + elecCost,
-		Nodes:        nodeInfo,
-		GeneratedAt:  time.Now(),
-		ContextName:  contextName,
-		ClusterName:  clusterName,
+		PodCosts:         podCosts,
+		HardwareCost:     hardwareCost,
+		ElecCost:         elecCost,
+		ControlPlaneCost: controlPlaneCost,
+		TotalCost:        hardwareCost + elecCost + controlPlaneCost,
+		Nodes:            nodeInfo,
+		GeneratedAt:      time.Now(),
+		ContextName:      contextName,
+		ClusterName:      clusterName,
 	}
 
 	if err := pdf.Generate(data, output); err != nil {

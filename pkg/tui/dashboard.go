@@ -27,14 +27,16 @@ type NodeInfo struct {
 }
 
 type ReportData struct {
-	PodCosts       []PodInfo
-	TotalCost      float64
-	HardwareCost   float64
-	ElecCost       float64
-	Nodes          []NodeInfo
-	ContextName    string
-	ClusterName    string
-	StatsFreshness StatsFreshness
+	PodCosts         []PodInfo
+	TotalCost        float64
+	HardwareCost     float64
+	ElecCost         float64
+	ControlPlaneCost float64
+	Nodes            []NodeInfo
+	ContextName      string
+	ClusterName      string
+	PricingSource    string
+	StatsFreshness   StatsFreshness
 }
 
 type StatsFreshness struct {
@@ -72,11 +74,12 @@ func ShowDashboard(data ReportData) {
 	headerBar.SetDirection(tview.FlexRow).SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
 
 	headerTop := fmt.Sprintf(
-		"kFin | Context: %s | Cluster: %s | Nodes:%d | Monthly:$%.2f",
+		"kFin | Context: %s | Cluster: %s | Nodes:%d | Monthly:$%.2f | Rates:%s",
 		truncateString(data.ContextName, 28),
 		truncateString(data.ClusterName, 28),
 		len(data.Nodes),
 		data.TotalCost,
+		truncateString(data.PricingSource, 12),
 	)
 	headerMid := " [1] Overview  [2] Namespaces  [3] Nodes "
 
@@ -111,19 +114,22 @@ func ShowDashboard(data ReportData) {
 		tierLabel,
 	))
 
-	var hardwarePct, elecPct float64
+	var hardwarePct, elecPct, controlPlanePct float64
 	if data.TotalCost > 0 {
 		hardwarePct = (data.HardwareCost / data.TotalCost) * 100.0
 		elecPct = (data.ElecCost / data.TotalCost) * 100.0
+		controlPlanePct = (data.ControlPlaneCost / data.TotalCost) * 100.0
 	}
 	costBreakdown := tview.NewTextView().SetDynamicColors(true)
 	costBreakdown.SetBorder(true).SetTitle(" Cost Breakdown ").SetTitleColor(cyan)
 	costBreakdown.SetText(fmt.Sprintf(
-		" Hardware:    $%.2f (%.1f%%)\n Electricity: $%.2f (%.1f%%)\n Allocation:\n [green]H[-] %s\n [yellow]E[-] %s",
+		" Hardware:      $%.2f (%.1f%%)\n Electricity:   $%.2f (%.1f%%)\n Control Plane: $%.2f (%.1f%%)\n Allocation:\n [green]H[-] %s\n [yellow]E[-] %s\n [blue]C[-] %s",
 		data.HardwareCost, hardwarePct,
 		data.ElecCost, elecPct,
+		data.ControlPlaneCost, controlPlanePct,
 		renderCostBar(hardwarePct),
 		renderCostBar(elecPct),
+		renderCostBar(controlPlanePct),
 	))
 
 	topPods := tview.NewTable().SetBorders(false)

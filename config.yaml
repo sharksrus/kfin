@@ -12,14 +12,39 @@ pricing:
   # Average wattage per node
   watts_per_node: 15  # Raspberry Pi typically uses 5-10W idle, 15W under load
 
+  # Optional per-node monthly override by EC2 instance type label.
+  # If node label `node.kubernetes.io/instance-type` is present and matched
+  # here, kfin uses the mapped monthly value instead of memory-based hardware cost.
+  # instance_monthly_by_type:
+  #   t3.medium: 30.00
+  #   m5.large: 70.00
+
+  eks:
+    # EKS control plane cost in USD per hour, applied once per detected EKS cluster.
+    control_plane_per_hour: 0.10
+
   # Cloud pricing (if using cloud vs local)
+  # Used by `kfin history` when pricing source is `config`.
   cloud:
     cpu_per_hour: 0.025   # $/vCPU/hour
     mem_per_gb_hour: 0.006  # $/GB/hour
 
+  # Optional MCP command for dynamic pricing lookup.
+  # Used by `kfin history --pricing-source mcp`.
+  # Also used by analyze/tui/pdf when command is set; falls back to pricing.cloud on failure.
+  mcp:
+    command: "./scripts/aws-pricing-rates.sh"
+    args: ["--mode", "explicit-rates", "--cpu-rate", "0.031", "--mem-rate", "0.0045"]
+    #command: ""
+    #args: []
+    # Example:
+    # command: "./scripts/aws-pricing-rates.sh"
+    # args: ["c6a.large", "US East (Ohio)"]
+
 stats:
   # Prometheus-compatible endpoint (for historical usage queries)
-  base_url: "http://stats.kramerica.ai"
+  #base_url: "http://stats.kramerica.ai"
+  base_url: "http://k8s-cloud-promethe-363ce376a8-688315853.us-east-2.elb.amazonaws.com"
   # HTTP timeout when querying stats API
   query_timeout_seconds: 15
   # Default lookback window used by `kfin history`

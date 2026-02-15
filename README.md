@@ -137,12 +137,47 @@ Text analysis report:
 ./kfin analyze
 ```
 
+`analyze`/`tui`/`pdf` pricing behavior:
+
+- Pod/container costs use cloud usage rates.
+  - Default source: `pricing.cloud` in `config.yaml`.
+  - If `pricing.mcp.command` is set, `kfin` attempts MCP pricing first and falls back to `pricing.cloud` on failure.
+- Cluster totals include:
+  - node hardware cost (instance override or memory-based fallback)
+  - electricity cost
+  - EKS control plane cost (`pricing.eks.control_plane_per_hour * 730`) when an EKS cluster is detected from node metadata.
+
 Historical usage summary:
 
 ```bash
 ./kfin history
 ./kfin history --hours 168 --step 15m
 ./kfin history --hours 24 --step 1m --debug
+```
+
+History pricing modes:
+
+```bash
+# Default: pricing from config.yaml (pricing.cloud.*)
+./kfin history --pricing-source config --hours 1 --step 1m --debug
+
+# MCP mode using AWS-derived split-instance rates
+./kfin history --pricing-source mcp \
+  --pricing-mcp-command ./scripts/aws-pricing-rates.sh \
+  --pricing-mcp-arg c6a.large \
+  --pricing-mcp-arg "US East (Ohio)" \
+  --hours 1 --step 1m --debug
+
+# MCP mode using explicit calibrated rates
+./kfin history --pricing-source mcp \
+  --pricing-mcp-command ./scripts/aws-pricing-rates.sh \
+  --pricing-mcp-arg --mode \
+  --pricing-mcp-arg explicit-rates \
+  --pricing-mcp-arg --cpu-rate \
+  --pricing-mcp-arg 0.031 \
+  --pricing-mcp-arg --mem-rate \
+  --pricing-mcp-arg 0.0045 \
+  --hours 1 --step 1m --debug
 ```
 
 Interactive dashboard:
@@ -194,6 +229,32 @@ stats:
   query_timeout_seconds: 15
   default_lookback_hours: 24
 ```
+
+Pricing provider configuration example:
+
+```yaml
+pricing:
+  eks:
+    control_plane_per_hour: 0.10
+  cloud:
+    cpu_per_hour: 0.025
+    mem_per_gb_hour: 0.006
+  mcp:
+    command: "./scripts/aws-pricing-rates.sh"
+    args: ["c6a.large", "US East (Ohio)"]
+```
+
+`scripts/aws-pricing-rates.sh` output modes:
+
+- `split-instance` (default): derives `cpu_per_hour` and `mem_per_gb_hour` by splitting one instance hourly price across vCPU and GiB.
+- `explicit-rates`: uses provided calibrated rates.
+  - Example:
+    - `./scripts/aws-pricing-rates.sh --mode explicit-rates --cpu-rate 0.031 --mem-rate 0.0045`
+
+AWS auth note for MCP pricing:
+
+- `scripts/aws-pricing-rates.sh` calls AWS Pricing API through `aws` CLI.
+- You must have an active AWS CLI auth session/profile (for example `aws sso login --profile <profile>`), or the MCP pricing command will fail.
 
 ## CI/CD
 

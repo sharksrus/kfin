@@ -54,12 +54,10 @@ func ShowDashboard(data ReportData) {
 	headerBar.SetDirection(tview.FlexColumn).SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
 
 	// kFin ASCII logo (like k9s)
-	kfinLogo := `  _               __  __ _
- | |__   ___  / _|/ _| |_
- | '_ \ / _ \| |_| |_| '_|
- | | | |  __/| |_|  _| | |
- |_| |_|\___||_| |_| |_|
-
+	kfinLogo := `  _ __ ___ | |/ _|| || |
+ | '_ \ / _ \ | |_| |_| || |_
+ | | | |  __/| |  _| ||  _|
+ |_| |_|\___||_| |_| |_||_|
 `
 
 	// Top line: logo on left, context in middle, logo on right

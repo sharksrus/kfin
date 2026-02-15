@@ -50,10 +50,7 @@ func ShowDashboard(data ReportData) {
 	white := tcell.ColorWhite
 	yellow := tcell.ColorYellow
 
-	// ========== MENU BAR (always visible) ==========
-	menuBar := tview.NewTextView().
-		SetText("kfin | 1:Overview  2:Pods  3:Nodes  4:ByNS  [ESC]:Quit")
-	menuBar.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
+	// ========== MAIN CONTENT AREA ==========
 
 	// ========== OVERVIEW VIEW ==========
 	overview := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -62,12 +59,12 @@ func ShowDashboard(data ReportData) {
 kfin - Kubernetes Cost Analyzer
 
 Monthly Cost: $%.2f
----------------------------------------------------
+
 Hardware (amortized):  $%.2f
 Electricity:           $%.2f
 
-Pods: %d | Nodes: %d | Namespaces: %v
-`, data.TotalCost, data.HardwareCost, data.ElecCost, len(data.PodCosts), len(data.Nodes), namespaces)
+Pods: %d  |  Nodes: %d  |  Namespaces: %d
+`, data.TotalCost, data.HardwareCost, data.ElecCost, len(data.PodCosts), len(data.Nodes), len(namespaces))
 
 	overview.AddItem(tview.NewTextView().SetText(overviewText).SetDynamicColors(true), 0, 1, false)
 
@@ -100,7 +97,6 @@ Pods: %d | Nodes: %d | Namespaces: %v
 	podTable.SetCell(row, 3, tview.NewTableCell("").SetAlign(tview.AlignRight))
 	podTable.SetCell(row, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", totalCost)).SetTextColor(yellow).SetAlign(tview.AlignRight))
 
-	podsView.AddItem(tview.NewTextView().SetText(fmt.Sprintf("\n [yellow]Total Monthly Pod Cost:[white] $%.2f\n", totalCost)).SetDynamicColors(true), 1, 0, false)
 	podsView.AddItem(podTable, 0, 1, false)
 
 	// ========== NODES VIEW ==========
@@ -131,7 +127,6 @@ Pods: %d | Nodes: %d | Namespaces: %v
 	nodeTable.SetCell(len(data.Nodes)+1, 3, tview.NewTableCell("").SetAlign(tview.AlignRight))
 	nodeTable.SetCell(len(data.Nodes)+1, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", nodeTotal)).SetTextColor(yellow).SetAlign(tview.AlignRight))
 
-	nodesView.AddItem(tview.NewTextView().SetText(fmt.Sprintf("\n [yellow]Total Monthly Node Cost:[white] $%.2f\n", nodeTotal)).SetDynamicColors(true), 1, 0, false)
 	nodesView.AddItem(nodeTable, 0, 1, false)
 
 	// ========== BY NAMESPACE VIEW ==========
@@ -155,19 +150,17 @@ Pods: %d | Nodes: %d | Namespaces: %v
 
 	// Create pages for each namespace
 	nsPages := tview.NewPages()
-	nsPages.AddPage("menu", tview.NewTextView().
-		SetText(fmt.Sprintf("\n [yellow]Select a namespace:[white]\n\n %v\n\n [yellow]Press number to select[white]", namespaces)).
-		SetDynamicColors(true), true, true)
+	currentNS := 0
 
 	for i, ns := range namespaces {
 		nsPods := nsInfo[ns]
 		nsPage := tview.NewFlex().SetDirection(tview.FlexRow)
 
-		// NS summary
+		// NS summary header
 		nsPage.AddItem(tview.NewTextView().
-			SetText(fmt.Sprintf("\n [orange::b]Namespace: %s[white]\n Pods: %d | Monthly Cost: $%.2f\n",
+			SetText(fmt.Sprintf(" Namespace: %s  |  Pods: %d  |  Monthly Cost: $%.2f ",
 				ns, nsPods.count, nsPods.cost)).
-			SetDynamicColors(true), 2, 0, false)
+			SetDynamicColors(true), 1, 0, false)
 
 		// Pods in this namespace
 		podTable := tview.NewTable().SetBorders(true)
@@ -197,19 +190,6 @@ Pods: %d | Nodes: %d | Namespaces: %v
 		nsPages.AddPage(fmt.Sprintf("%d", i), nsPage, true, false)
 	}
 
-	// Build namespace list with numbers for selection
-	var nsList []string
-	for i, ns := range namespaces {
-		nsList = append(nsList, fmt.Sprintf("%d:%s", i+1, ns))
-	}
-
-	// Track current namespace index for arrow key navigation
-	currentNS := 0
-
-	nsView.AddItem(tview.NewTextView().
-		SetText(fmt.Sprintf("\n Namespaces (%d): %v\n\n Press number (1-%d) or arrow keys to cycle through namespaces\n",
-			len(namespaces), nsList, len(namespaces))).
-		SetDynamicColors(true), 2, 0, false)
 	nsView.AddItem(nsPages, 0, 1, false)
 
 	// Add pages
@@ -218,10 +198,15 @@ Pods: %d | Nodes: %d | Namespaces: %v
 	pages.AddPage(pageNodes, nodesView, true, false)
 	pages.AddPage(pageNamespaces, nsView, true, false)
 
-	// Main layout with menu bar on top
+	// ========== SHORTCUT BAR (k9s style at bottom) ==========
+	shortcutBar := tview.NewTextView().
+		SetText("kfin: [1]Overview  [2]Pods  [3]Nodes  [4]Namespace  [ESC]Quit  [←→]Cycle NS")
+	shortcutBar.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
+
+	// ========== MAIN LAYOUT ==========
 	mainLayout := tview.NewFlex().SetDirection(tview.FlexRow)
-	mainLayout.AddItem(menuBar, 1, 0, false)
 	mainLayout.AddItem(pages, 0, 1, true)
+	mainLayout.AddItem(shortcutBar, 1, 0, false)
 
 	// Key handler
 	mainLayout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -242,26 +227,19 @@ Pods: %d | Nodes: %d | Namespaces: %v
 
 		// Number keys
 		r := string(event.Rune())
-		if currentPage == pageOverview || currentPage == pagePods || currentPage == pageNodes {
-			switch r {
-			case "1":
-				pages.SwitchToPage(pageOverview)
-			case "2":
-				pages.SwitchToPage(pagePods)
-			case "3":
-				pages.SwitchToPage(pageNodes)
-			case "4":
-				pages.SwitchToPage(pageNamespaces)
-			}
-		} else if currentPage == pageNamespaces {
-			// In namespace view, number keys switch between namespaces
-			for i := range namespaces {
-				if r == fmt.Sprintf("%d", i+1) {
-					currentNS = i
-					nsPages.SwitchToPage(fmt.Sprintf("%d", i))
-				}
-			}
-			// Arrow key navigation
+		switch r {
+		case "1":
+			pages.SwitchToPage(pageOverview)
+		case "2":
+			pages.SwitchToPage(pagePods)
+		case "3":
+			pages.SwitchToPage(pageNodes)
+		case "4":
+			pages.SwitchToPage(pageNamespaces)
+		}
+
+		// Arrow keys for namespace cycling
+		if currentPage == pageNamespaces {
 			switch event.Key() {
 			case tcell.KeyRight, tcell.KeyDown:
 				currentNS = (currentNS + 1) % len(namespaces)
@@ -289,18 +267,4 @@ func getNamespaces(pods []PodInfo) []string {
 		}
 	}
 	return namespaces
-}
-
-// Helper to convert tcell color to hex for dynamic colors
-func colorToHex(c tcell.Color) string {
-	if c == tcell.ColorOrange {
-		return "orange"
-	}
-	if c == tcell.ColorWhite {
-		return "white"
-	}
-	if c == tcell.ColorYellow {
-		return "yellow"
-	}
-	return "white"
 }

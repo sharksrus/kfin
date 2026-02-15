@@ -201,7 +201,7 @@ Pods: %d  |  Nodes: %d  |  Namespaces: %d
 	// ========== SHORTCUT BAR (k9s style at bottom) ==========
 	shortcutBar := tview.NewTextView().
 		SetDynamicColors(true).
-		SetText("[yellow][ESC][white] Quit                                                                                      kfin: [yellow][1][white]Overview  [yellow][2][white]Pods  [yellow][3][white]Nodes  [yellow][4][white]Namespace  [yellow][←→][white]Cycle NS")
+		SetText(" ESC:Quit | 1:Overview | 2:Pods | 3:Nodes | 4:Namespace | ArrowKeys:Cycle ")
 	shortcutBar.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
 
 	// ========== MAIN LAYOUT ==========

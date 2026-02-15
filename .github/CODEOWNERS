@@ -1,0 +1,13 @@
+# Default owner for all files
+* @sharksrus/judges
+
+# Security and release automation
+.github/workflows/* @sharksrus/judges
+.github/dependabot.yml @sharksrus/judges
+SECURITY.md @sharksrus/judges
+
+# Supply chain sensitive files
+go.mod @sharksrus/judges
+go.sum @sharksrus/judges
+scripts/* @sharksrus/judges
+Formula/* @sharksrus/judges

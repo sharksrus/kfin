@@ -1,4 +1,3 @@
-pod-cost-analyzer
 *.exe
 *.dll
 *.so
@@ -9,3 +8,4 @@ bin/
 .env
 *.log
 kfin
+TOMORROW.md

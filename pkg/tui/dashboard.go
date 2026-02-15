@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -26,13 +27,24 @@ type NodeInfo struct {
 }
 
 type ReportData struct {
-	PodCosts     []PodInfo
-	TotalCost    float64
-	HardwareCost float64
-	ElecCost     float64
-	Nodes        []NodeInfo
-	ContextName  string
-	ClusterName  string
+	PodCosts       []PodInfo
+	TotalCost      float64
+	HardwareCost   float64
+	ElecCost       float64
+	Nodes          []NodeInfo
+	ContextName    string
+	ClusterName    string
+	StatsFreshness StatsFreshness
+}
+
+type StatsFreshness struct {
+	Ready            bool
+	BaseURL          string
+	LookbackDuration time.Duration
+	ObservedDuration time.Duration
+	SampleCount      int
+	LastSampleAt     time.Time
+	Note             string
 }
 
 const (
@@ -87,16 +99,16 @@ func ShowDashboard(data ReportData) {
 	overview := tview.NewFlex().SetDirection(tview.FlexRow)
 	snapshot := tview.NewTextView().SetDynamicColors(true)
 	snapshot.SetBorder(true).SetTitle(" Cluster Snapshot ").SetTitleColor(cyan)
-	healthLabel, healthColor := costHealth(data.TotalCost)
+	tierLabel, tierColor := costTier(data.TotalCost)
 	snapshot.SetText(fmt.Sprintf(
-		" Pods:        %d\n Nodes:       %d\n Namespaces:  %d\n Monthly:     $%.2f\n Daily:       $%.2f\n Health:      [%s]%s[-]",
+		" Pods:        %d\n Nodes:       %d\n Namespaces:  %d\n Monthly:     $%.2f\n Daily:       $%.2f\n Cost Tier:   [%s]%s[-]",
 		len(data.PodCosts),
 		len(data.Nodes),
 		len(namespaces),
 		data.TotalCost,
 		data.TotalCost/30.0,
-		healthColor,
-		healthLabel,
+		tierColor,
+		tierLabel,
 	))
 
 	var hardwarePct, elecPct float64
@@ -232,7 +244,7 @@ func ShowDashboard(data ReportData) {
 		currentPage, _ := pages.GetFrontPage()
 		switch currentPage {
 		case pageOverview:
-			pageTitleView.SetText(" [darkcyan]OVERVIEW[-]  |  [gray]Tab/Left/Right switch tables, Up/Down move row, Enter drilldown[-]")
+			pageTitleView.SetText(" [darkcyan]OVERVIEW[-]  |  [gray]Tab/Left/Right switch tables, Up/Down move row, Enter pod details[-]")
 		case pageNodes:
 			pageTitleView.SetText(" [darkcyan]NODES[-]  |  [gray]Cluster monthly hardware + electricity by node[-]")
 		case pageNamespaces:
@@ -252,6 +264,34 @@ func ShowDashboard(data ReportData) {
 	contentFrame.AddItem(pages, 0, 1, true)
 	contentFrame.AddItem(tview.NewBox().SetBackgroundColor(tcell.ColorBlack), 1, 0, false)
 
+	podDetailView := tview.NewTextView().SetDynamicColors(true)
+	podDetailView.SetBorder(true).SetTitle(" Pod Details ").SetTitleColor(cyan)
+	podDetailView.SetBackgroundColor(tcell.ColorBlack)
+	podModalFrame := tview.NewFlex().SetDirection(tview.FlexRow)
+	podModalFrame.AddItem(tview.NewBox(), 0, 1, false)
+	podModalFrame.AddItem(
+		tview.NewFlex().SetDirection(tview.FlexColumn).
+			AddItem(tview.NewBox(), 0, 1, false).
+			AddItem(podDetailView, 80, 0, true).
+			AddItem(tview.NewBox(), 0, 1, false),
+		12, 0, true,
+	)
+	podModalFrame.AddItem(tview.NewBox(), 0, 1, false)
+	const pagePodDetail = "pod-detail"
+	pages.AddPage(pagePodDetail, podModalFrame, true, false)
+	podModalVisible := false
+
+	showPodDetail := func(pod PodInfo) {
+		podDetailView.SetText(buildPodDetailText(pod, data.StatsFreshness))
+		pages.ShowPage(pagePodDetail)
+		podModalVisible = true
+	}
+
+	hidePodDetail := func() {
+		pages.HidePage(pagePodDetail)
+		podModalVisible = false
+	}
+
 	footerNavView := tview.NewTextView().SetDynamicColors(true)
 	footerNavView.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
 	updateFooterNav := func() {
@@ -267,7 +307,7 @@ func ShowDashboard(data ReportData) {
 		case pageNodes:
 			nodesLabel = "[darkcyan][3] Nodes[-]"
 		}
-		footerNavView.SetText(fmt.Sprintf(" %s  %s  %s  |  Left/Right: Cycle NS  Esc: Quit ", overviewLabel, nsLabel, nodesLabel))
+		footerNavView.SetText(fmt.Sprintf(" %s  %s  %s  |  Left/Right: Cycle NS  Esc: Back  : Command ", overviewLabel, nsLabel, nodesLabel))
 	}
 	updateFooterNav()
 
@@ -277,20 +317,95 @@ func ShowDashboard(data ReportData) {
 	mainLayout.AddItem(contentFrame, 0, 1, true)
 	mainLayout.AddItem(footerNavView, 1, 0, false)
 
+	pageHistory := []string{}
+	commandMode := false
+	commandBuffer := ""
+
+	switchToPage := func(page string) {
+		currentPage, _ := pages.GetFrontPage()
+		if currentPage == page {
+			return
+		}
+		pageHistory = append(pageHistory, currentPage)
+		pages.SwitchToPage(page)
+	}
+
+	updateCommandFooter := func() {
+		footerNavView.SetText(fmt.Sprintf(" [darkcyan]Command[-] %s[gray]   (Enter to run, Esc to cancel)[-]", commandBuffer))
+	}
+
 	mainLayout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if podModalVisible {
+			switch event.Key() {
+			case tcell.KeyEsc, tcell.KeyEnter:
+				hidePodDetail()
+			}
+			return nil
+		}
+
+		if commandMode {
+			switch event.Key() {
+			case tcell.KeyEsc:
+				commandMode = false
+				commandBuffer = ""
+				updateFooterNav()
+				return nil
+			case tcell.KeyEnter:
+				cmd := strings.TrimSpace(commandBuffer)
+				commandMode = false
+				commandBuffer = ""
+				switch cmd {
+				case ":q", ":quit":
+					app.Stop()
+					return nil
+				case "":
+					updateFooterNav()
+					return nil
+				default:
+					footerNavView.SetText(fmt.Sprintf(" [yellow]Unknown command:[-] %s  [gray](supported: :q, :quit)[-]", cmd))
+					return nil
+				}
+			case tcell.KeyBackspace, tcell.KeyBackspace2:
+				if len(commandBuffer) > 1 {
+					commandBuffer = commandBuffer[:len(commandBuffer)-1]
+				}
+				updateCommandFooter()
+				return nil
+			}
+
+			if event.Rune() != 0 {
+				commandBuffer += string(event.Rune())
+				updateCommandFooter()
+				return nil
+			}
+			return nil
+		}
 
 		switch event.Key() {
 		case tcell.KeyEsc:
-			app.Stop()
+			if len(pageHistory) > 0 {
+				prev := pageHistory[len(pageHistory)-1]
+				pageHistory = pageHistory[:len(pageHistory)-1]
+				pages.SwitchToPage(prev)
+			}
+			updateHeaderNav()
+			updateFooterNav()
+			updatePageTitle()
+			return nil
 		}
 		r := string(event.Rune())
 		switch r {
 		case "1":
-			pages.SwitchToPage(pageOverview)
+			switchToPage(pageOverview)
 		case "2":
-			pages.SwitchToPage(pageNamespaces)
+			switchToPage(pageNamespaces)
 		case "3":
-			pages.SwitchToPage(pageNodes)
+			switchToPage(pageNodes)
+		case ":":
+			commandMode = true
+			commandBuffer = ":"
+			updateCommandFooter()
+			return nil
 		}
 		currentPage, _ := pages.GetFrontPage()
 		if currentPage == pageOverview {
@@ -349,12 +464,7 @@ func ShowDashboard(data ReportData) {
 				if activeOverviewTable == 0 {
 					r, _ := topPods.GetSelection()
 					if len(topPodItems) > 0 && r >= 1 && r <= len(topPodItems) {
-						ns := topPodItems[r-1].Namespace
-						if idx, ok := nsIndex[ns]; ok {
-							currentNS = idx
-							nsPages.SwitchToPage(fmt.Sprintf("%d", currentNS))
-							pages.SwitchToPage(pageNamespaces)
-						}
+						showPodDetail(topPodItems[r-1])
 					}
 				} else {
 					r, _ := topNS.GetSelection()
@@ -363,7 +473,7 @@ func ShowDashboard(data ReportData) {
 						if idx, ok := nsIndex[ns]; ok {
 							currentNS = idx
 							nsPages.SwitchToPage(fmt.Sprintf("%d", currentNS))
-							pages.SwitchToPage(pageNamespaces)
+							switchToPage(pageNamespaces)
 						}
 					}
 				}
@@ -475,14 +585,14 @@ func renderCostBar(percent float64) string {
 	return bar
 }
 
-func costHealth(totalCost float64) (string, string) {
+func costTier(totalCost float64) (string, string) {
 	switch {
 	case totalCost >= 3000:
-		return "HIGH", "red"
+		return "LARGE", "red"
 	case totalCost >= 1000:
 		return "MEDIUM", "yellow"
 	default:
-		return "LOW", "green"
+		return "SMALL", "green"
 	}
 }
 
@@ -493,7 +603,7 @@ func costBadge(cost float64) string {
 	case cost >= 10:
 		return "[yellow]M[-]"
 	default:
-		return "[green]L[-]"
+		return "[green]C[-]"
 	}
 }
 
@@ -559,6 +669,78 @@ func buildNodesListText(nodes []NodeInfo) string {
 	lines = append(lines, leftPad+separator)
 	lines = append(lines, leftPad+fmt.Sprintf("[green]%-12s %10s %12s %12s %12s[-]", "TOTAL", "", "", "", fmt.Sprintf("$%.2f", total)))
 	return strings.Join(lines, "\n")
+}
+
+func buildPodDetailText(pod PodInfo, freshness StatsFreshness) string {
+	lines := []string{
+		fmt.Sprintf("  Pod:        [white]%s[-]", pod.Name),
+		fmt.Sprintf("  Namespace:  [white]%s[-]", pod.Namespace),
+		fmt.Sprintf("  CPU Req:    [white]%s[-]", pod.CPU),
+		fmt.Sprintf("  Mem Req:    [white]%s[-]", pod.Memory),
+		fmt.Sprintf("  Monthly:    [white]$%.2f[-]", pod.Cost),
+		"",
+		"  [darkcyan]Prometheus Data Freshness[-]",
+	}
+
+	if !freshness.Ready {
+		lines = append(lines,
+			fmt.Sprintf("  Status:     [yellow]Unavailable[-] (%s)", truncateString(freshness.Note, 64)),
+			"",
+			"  [gray]Tip: configure stats.base_url to show scrape-history confidence here.[-]",
+			"",
+			"  [gray]Esc/Enter to close[-]",
+		)
+		return strings.Join(lines, "\n")
+	}
+
+	confidenceLabel, confidenceColor := freshnessConfidence(freshness.ObservedDuration)
+	lastAge := "now"
+	if !freshness.LastSampleAt.IsZero() {
+		age := time.Since(freshness.LastSampleAt).Round(time.Minute)
+		if age > 0 {
+			lastAge = fmt.Sprintf("%s ago", age)
+		}
+	}
+
+	lines = append(lines,
+		fmt.Sprintf("  Source:     %s", truncateString(freshness.BaseURL, 56)),
+		fmt.Sprintf("  Coverage:   [white]%s[-] observed of [white]%s[-] lookback", formatShortDuration(freshness.ObservedDuration), formatShortDuration(freshness.LookbackDuration)),
+		fmt.Sprintf("  Samples:    [white]%d[-] points", freshness.SampleCount),
+		fmt.Sprintf("  Last Seen:  [white]%s[-]", lastAge),
+		fmt.Sprintf("  Confidence: [%s]%s[-]", confidenceColor, confidenceLabel),
+		"",
+		"  [gray]Esc/Enter to close[-]",
+	)
+
+	return strings.Join(lines, "\n")
+}
+
+func freshnessConfidence(observed time.Duration) (string, string) {
+	switch {
+	case observed < 30*time.Minute:
+		return "Very low (early scrape history)", "red"
+	case observed < 2*time.Hour:
+		return "Low (still warming up)", "yellow"
+	case observed < 6*time.Hour:
+		return "Moderate", "yellow"
+	default:
+		return "High", "green"
+	}
+}
+
+func formatShortDuration(d time.Duration) string {
+	if d <= 0 {
+		return "0m"
+	}
+	if d < time.Hour {
+		return fmt.Sprintf("%dm", int(d.Minutes()))
+	}
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	if m == 0 {
+		return fmt.Sprintf("%dh", h)
+	}
+	return fmt.Sprintf("%dh%dm", h, m)
 }
 
 func getNamespaces(pods []PodInfo) []string {

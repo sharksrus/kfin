@@ -16,3 +16,11 @@ pricing:
   cloud:
     cpu_per_hour: 0.025   # $/vCPU/hour
     mem_per_gb_hour: 0.006  # $/GB/hour
+
+stats:
+  # Prometheus-compatible endpoint (for historical usage queries)
+  base_url: "http://stats.kramerica.ai"
+  # HTTP timeout when querying stats API
+  query_timeout_seconds: 15
+  # Default lookback window used by `kfin history`
+  default_lookback_hours: 24

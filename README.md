@@ -107,7 +107,7 @@ Note: for `brew install` to work for everyone, release assets must be publicly d
 Automated option:
 
 - Workflow: `.github/workflows/homebrew-tap.yml`
-- Trigger: release published (or manual dispatch)
+- Trigger: successful completion of `Release` workflow (or manual dispatch)
 - Target tap repo: `sharksrus/homebrew-kfin`
 - Required secrets in `sharksrus/kfin`:
   - `HOMEBREW_APP_ID`

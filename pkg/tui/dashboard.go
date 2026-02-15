@@ -87,18 +87,14 @@ func ShowDashboard(data ReportData) {
 	// ========== OVERVIEW VIEW ==========
 	overview := tview.NewFlex().SetDirection(tview.FlexRow)
 
-	overviewText := fmt.Sprintf(`
-Pods(%d)  Namespaces(%d)  Monthly($%.2f)
-
-`, len(data.PodCosts), len(namespaces), data.TotalCost)
+	// k9s style: show pods(all) at top
+	overviewText := fmt.Sprintf("pods(all)[%d]\n\n", len(data.PodCosts))
 
 	overviewView := tview.NewTextView().SetText(overviewText).SetDynamicColors(true)
 	overviewView.SetBorder(false)
-	overview.AddItem(overviewView, 0, 1, false)
+	overview.AddItem(overviewView, 1, 0, false)
 
-	// ========== PODS VIEW ==========
-	podsView := tview.NewFlex().SetDirection(tview.FlexRow)
-
+	// Pods table on overview
 	podTable := tview.NewTable().SetBorders(false)
 	podHeaders := []string{"NAMESPACE", "NAME", "CPU", "MEM", "COST"}
 	for i, h := range podHeaders {
@@ -125,6 +121,10 @@ Pods(%d)  Namespaces(%d)  Monthly($%.2f)
 	podTable.SetCell(row, 3, tview.NewTableCell("").SetAlign(tview.AlignRight))
 	podTable.SetCell(row, 4, tview.NewTableCell(fmt.Sprintf("$%.2f", totalCost)).SetTextColor(green).SetAlign(tview.AlignRight))
 
+	overview.AddItem(podTable, 0, 1, false)
+
+	// ========== PODS VIEW (same as overview) ==========
+	podsView := tview.NewFlex().SetDirection(tview.FlexRow)
 	podsView.AddItem(podTable, 0, 1, false)
 
 	// ========== NODES VIEW ==========

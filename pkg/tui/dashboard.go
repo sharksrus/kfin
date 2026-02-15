@@ -52,8 +52,8 @@ func ShowDashboard(data ReportData) {
 
 	// ========== MENU BAR (always visible) ==========
 	menuBar := tview.NewTextView().
-		SetText("kfin | 1:Overview 2:Pods 3:Nodes 4:ByNS | ESC:Quit")
-	menuBar.SetBorder(true).SetBorderColor(blue).SetBackgroundColor(blue)
+		SetText("kfin | 1:Overview  2:Pods  3:Nodes  4:ByNS  [ESC]:Quit")
+	menuBar.SetBorder(false).SetBackgroundColor(tcell.ColorBlack)
 
 	// ========== OVERVIEW VIEW ==========
 	overview := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -197,9 +197,15 @@ Pods: %d | Nodes: %d | Namespaces: %v
 		nsPages.AddPage(fmt.Sprintf("%d", i), nsPage, true, false)
 	}
 
+	// Build namespace list with numbers for selection
+	var nsList []string
+	for i, ns := range namespaces {
+		nsList = append(nsList, fmt.Sprintf("%d:%s", i+1, ns))
+	}
+
 	nsView.AddItem(tview.NewTextView().
-		SetText(fmt.Sprintf("\n [yellow]Namespaces (%d):[white] %v\n\n [yellow]Press number (1-%d) to flip between namespaces[white]\n",
-			len(namespaces), namespaces, len(namespaces))).
+		SetText(fmt.Sprintf("\n Namespaces (%d): %v\n\n Press number (1-%d) to view pods in namespace\n",
+			len(namespaces), nsList, len(namespaces))).
 		SetDynamicColors(true), 2, 0, false)
 	nsView.AddItem(nsPages, 0, 1, false)
 
@@ -211,7 +217,7 @@ Pods: %d | Nodes: %d | Namespaces: %v
 
 	// Main layout with menu bar on top
 	mainLayout := tview.NewFlex().SetDirection(tview.FlexRow)
-	mainLayout.AddItem(menuBar, 2, 0, false)
+	mainLayout.AddItem(menuBar, 1, 0, false)
 	mainLayout.AddItem(pages, 0, 1, true)
 
 	// Key handler
